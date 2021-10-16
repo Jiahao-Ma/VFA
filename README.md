@@ -34,5 +34,8 @@ Download the MultiviewC to `~/Data` folder from [BaiduDrive](https://pan.baidu.c
 Download the latest training documents to `~/experiments` folder from [BaiduDrive](https://pan.baidu.com/s/1OJTZHaDnLh5PJnV7ZqqWmA)`pwd:6666` and unzip them. This training documents contains the checkpoints of model, optimizer and scheduler and tensorboard containing the training details. Notice, this is not the final released version of MOFT3D.
 
 ### Evaluation
-There are two metrics to evaluate the performance of model. MODA, MODP, Precission and Recall are used to evaluate detection performance such as the detection in occlusion scenes. These metrics need to successfully run in matlab environment. 
+There are two metrics to evaluate the performance of model. MODA, MODP, Precission and Recall are used to evaluate detection performance such as the detection in occlusion scenes. These metrics need to successfully run in matlab environment. Please refer to [here](https://github.com/Robert-Mar/MOFT3D/tree/main/moft/evaluation) for more details.
+Even though, the python implementation of these metrics mentioned above is also provided, it need to select the distance threshould to detemine to positive samples，which is not objective enough. Thus, it is recommended to select the official implementation of matlab.
+
+When it comes to the AP, AOS, OS metrics, we need to install cuda environment and build the toolkit for 3D rotated IoUs calculation. Please refer to this (repo)[https://github.com/Robert-Mar/2D-3D-IoUs] for more details.
 
