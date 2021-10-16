@@ -10,8 +10,8 @@ We propose a novel method, MOFT3D, for multiview 3D object detection and Multivi
   * [Build your own version](#build-your-own-version)
 - [MOFT3D Code](#mvdet-code)
   * [Data Preparation](#data-preparation)
-  * [Training Evaluation](#training-evaluation)
-  * [Inference](#inference)
+  * [Training and Inference](#training-and-inference)
+  * [Evaluation](#inference)
 ## MultiviewC dataset
 The MultiviewC dataset mainly contributes to multiview cattle action recognition, 3D objection detection and tracking. We build a novel synthetic dataset MultiviewC through UE4 based on [real cattle video dataset](https://cloudstor.aarnet.edu.au/plus/s/fouvWr9sE6TBueO) which is offered by CISRO.
 
