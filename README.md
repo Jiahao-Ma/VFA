@@ -37,5 +37,5 @@ Download the latest training documents to `~/experiments` folder from [BaiduDriv
 There are two metrics to evaluate the performance of model. MODA, MODP, Precission and Recall are used to evaluate detection performance such as the detection in occlusion scenes. These metrics need to successfully run in matlab environment. Please refer to [here](https://github.com/Robert-Mar/MOFT3D/tree/main/moft/evaluation) for more details.
 Even though, the python implementation of these metrics mentioned above is also provided, it need to select the distance threshould to detemine to positive samples，which is not objective enough. Thus, it is recommended to select the official implementation of matlab.
 
-When it comes to the AP, AOS, OS metrics, we need to install cuda environment and build the toolkit for 3D rotated IoUs calculation. Please refer to this (repo)[https://github.com/Robert-Mar/2D-3D-IoUs] for more details.
+When it comes to the AP, AOS, OS metrics, we need to install cuda environment and build the toolkit for 3D rotated IoUs calculation. Please refer to this [repo](https://github.com/Robert-Mar/2D-3D-IoUs) for more details.
 
