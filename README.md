@@ -28,7 +28,7 @@ Please refer to this [repo](https://github.com/Robert-Mar/MultiviewC) for Multiv
 This repo is contributed to the code for MOFT3D.
 
 ### Data Preparation
-Download the MultiviewC to `~/Data` folder from [BaiduDrive](https://pan.baidu.com/s/1s67xf8eznms3eF6GfluYSg)`pwd:6666` or [GoogleDrive](). And rename it to `MultiviewC_dataset`.
+Download the MultiviewC to `~/Data` folder from [BaiduDrive](https://pan.baidu.com/s/1s67xf8eznms3eF6GfluYSg)`pwd:6666` or [GoogleDrive](https://drive.google.com/file/d/1OrSDryc7DRxKerhHN-g648sI1VgmlbrI/view?usp=sharing). And rename it to `MultiviewC_dataset`.
 
 ### Training and Inference
 Download the latest training documents to `~/experiments` folder from [BaiduDrive](https://pan.baidu.com/s/1OJTZHaDnLh5PJnV7ZqqWmA)`pwd:6666` and unzip them. This training documents contains the checkpoints of model, optimizer and scheduler and tensorboard containing the training details. Notice, this is not the final released version of MOFT3D.
