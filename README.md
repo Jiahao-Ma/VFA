@@ -20,7 +20,7 @@ The MultiviewC dataset is generated on a 37.5 meter by 37.5 meter square field. 
 ![alt text](https://github.com/Robert-Mar/MultiviewC/blob/main/github_material/MultiviewC.png "Visualization of MultiviewC")
 
 ### Download MultiviewC
-- download (from [Baidu Drive](https://pan.baidu.com/s/1s67xf8eznms3eF6GfluYSg) `Extraction Code: 6666` and copy the `annotations`, `images` and `calibrations` folder into this repo. 
+- download [dataset](#data-preparation) and copy the `annotations`, `images` and `calibrations` folder into this repo. 
 ### Build your own version
 Please refer to this [repo](https://github.com/Robert-Mar/MultiviewC) for MultiviewC dataset toolkits.
 
