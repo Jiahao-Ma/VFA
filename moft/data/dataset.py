@@ -40,7 +40,7 @@ class frameDataset(VisionDataset):
         self.grid = make_grid(world_size=world_size, cube_LW=cube_LW) # (l, w, 3)
     
     def download(self):
-        ann_paths = [ os.path.join(self.base.ann_root, p) for p in os.listdir(self.base.ann_root) ]
+        ann_paths = [ os.path.join(self.base.ann_root, p) for p in sorted(os.listdir(self.base.ann_root)) ]
         labels = list()
         # if cls avg not exist (true), calculate the property of dataset, including mean, number and sum of dimension
         BuildClsAvg = not os.path.exists(self.classAverage.save_path) 
