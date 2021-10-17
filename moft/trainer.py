@@ -11,7 +11,7 @@ class Trainer(object):
         self.device = device
         self.summary = summary
         self.loss_weight = loss_weight
-        self.viz_step = 178
+        self.viz_step = 1
 
 
     def train(self, dataloader, encoder, optimizer, epoch, args):
@@ -53,15 +53,16 @@ class Trainer(object):
                     )
                     pbar.update(1)
                 if idx % args.vis_iter == 0:
-                    # Visualize image
-                    self.summary.add_image('train/image', visualize_image(images[0]), self.viz_step)
-                    # Visualize heatmap
-                    self.summary.add_figure('train/heatmap', 
-                                visualize_heatmap(torch.sigmoid(encoded_pred['heatmap']), encoded_gt['heatmap']), self.viz_step)
+                    steps = (epoch-1) * (len(dataloader) // args.vis_iter) + idx // args.vis_iter
                     # Decode prediction
                     preds = encoder.batch_decode(encoded_pred, args.cls_thresh)
                     self.summary.add_figure('train/bboxes',
-                                visualize_bboxes(images[0], calibs[0], objects[0], preds), self.viz_step)
+                                visualize_bboxes(images[0], calibs[0], objects[0], preds), steps)
+                    # Visualize image
+                    self.summary.add_image('train/image', visualize_image(images[0]), steps)
+                    # Visualize heatmap
+                    self.summary.add_figure('train/heatmap', 
+                                visualize_heatmap(torch.sigmoid(encoded_pred['heatmap']), encoded_gt['heatmap']), steps)
                     self.viz_step += 1
         return epoch_loss.mean      
 

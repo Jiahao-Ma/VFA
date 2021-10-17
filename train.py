@@ -66,7 +66,7 @@ def parse():
     parser.add_argument('--cube_size', type=int, default=(25, 25, 32), 
                         help='the size of cube of designed grid')
 
-    parser.add_argument('--topdown', type=int, default=4,
+    parser.add_argument('--topdown', type=int, default=0,
                         help='the number of residual blocks in topdown network')
 
     parser.add_argument('--angle_range', type=int, default=360,
@@ -101,7 +101,7 @@ def parse():
     parser.add_argument('--topk', type=int, default=50,
                         help='the number of positive samples after nms')                        
     
-    parser.add_argument('--start_save', type=int, default=25,
+    parser.add_argument('--start_save', type=int, default=10,
                         help='After `start_save` epochs, model starts to save.')
     
     parser.add_argument('--copy_repo', type=bool, default=True,
