@@ -102,7 +102,14 @@ class frameDataset(VisionDataset):
         return index, images, objects, heatmaps, calibs, self.grid
 
 if __name__ == '__main__':
-    data = frameDataset(MultiviewC())
+    # Test the dataset
+    from moft.visualization.figure import _format_bboxes
+    import matplotlib.pyplot as plt
+    data = frameDataset(MultiviewC(root=r'F:\ANU\ENGN8602\Data\MultiviewC_github\dataset')) # The Path of MultiviewC dataset
+    index, images, objects, heatmaps, calibs, grid = next(iter(data))
+    for cam in range(0, 7):
+        ax = _format_bboxes(images[cam], calibs[cam], objects)
+        plt.show()
     
 
 
