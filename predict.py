@@ -14,7 +14,7 @@ def parse():
     parser = ArgumentParser()
 
     #Data options
-    parser.add_argument('--root', type=str, default=r'F:\ANU\ENGN8602\Data\MultiviewC_dataset',
+    parser.add_argument('--root', type=str, default=r'\Data\MultiviewC',
                         help='root directory of MultiviewC dataset')
 
     parser.add_argument('-b', '--batch_size', type=int, default=1,
