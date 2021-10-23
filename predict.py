@@ -14,7 +14,7 @@ def parse():
     parser = ArgumentParser()
 
     #Data options
-    parser.add_argument('--root', type=str, default=r'\Data\MultiviewC_dataset',
+    parser.add_argument('--root', type=str, default=r'F:\ANU\ENGN8602\Data\MultiviewC_dataset',
                         help='root directory of MultiviewC dataset')
 
     parser.add_argument('-b', '--batch_size', type=int, default=1,
@@ -25,10 +25,10 @@ def parse():
                         default='experiments')
     
     parser.add_argument('--resume', type=str,
-                        default='2021-10-14_20-15-45')
+                        default='2021-10-12_09-50-09')
     
     parser.add_argument('--checkpoint', type=str,
-                        default='Epoch32_train_loss0.0075_val_loss0.7319.pth')
+                        default='Epoch39_train_loss0.0267_val_loss1.0070.pth')
     
     #Predict options
     parser.add_argument('--cls_thresh', type=float, default=0.9,

@@ -8,13 +8,18 @@ from tqdm import tqdm
 from moft.utils import collate, to_numpy
 from moft.model.oftnet import MOFTNet
 from moft.data.encoder import ObjectEncoder
-from moft.data.dataset import MultiviewC, frameDataset
+from moft.data.dataset import frameDataset
+from moft.data.multiviewX import MultiviewX
+from moft.data.multiviewC import MultiviewC
+from moft.visualization.figure import visualize_bboxes
+from moft.evaluation.pyeval.CLEAR_MOD_HUN import CLEAR_MOD_HUN
 from moft.evaluation.evaluate import evaluate_rcll_prec_moda_modp, evaluate_ap_aos
+from moft.config import MultiviewX_Config, mx_opts
 def parse():
     parser = ArgumentParser()
 
     #Data options
-    parser.add_argument('--root', type=str, default=r'\Data\MultiviewC_dataset',
+    parser.add_argument('--root', type=str, default=r'F:\ANU\ENGN8602\Data\MultiviewX',
                         help='root directory of MultiviewC dataset')
 
     parser.add_argument('-b', '--batch_size', type=int, default=1,
@@ -25,28 +30,30 @@ def parse():
                         default='experiments')
     
     parser.add_argument('--resume', type=str,
-                        default='2021-10-14_20-15-45')
+                        default='2021-10-22_15-06-31')
     
     parser.add_argument('--checkpoint', type=str,
-                        default='Epoch32_train_loss0.0075_val_loss0.7319.pth')
+                        default='Epoch35_train_loss0.0172_val_loss0.5953.pth')
     
     #Predict options
     parser.add_argument('--cls_thresh', type=float, default=0.8,
                         help='positive sample confidence threshold')  
 
     parser.add_argument('--pr_dir_pred', type=str, 
-                        default=r'experiments\2021-10-14_20-15-45\evaluation\pr_dir_pred.txt')
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\evaluation\pr_dir_pred.txt')
     parser.add_argument('--pr_dir_gt', type=str, 
-                        default=r'experiments\2021-10-14_20-15-45\evaluation\pr_dir_gt.txt')
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\evaluation\pr_dir_gt.txt')
 
     parser.add_argument('--ap_aos_dir_pred', type=str, 
-                        default=r'experiments\2021-10-14_20-15-45\evaluation\ap_aos_pred.txt')
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\evaluation\ap_aos_pred.txt')
     parser.add_argument('--ap_aos_dir_gt', type=str, 
-                        default=r'experiments\2021-10-14_20-15-45\evaluation\ap_aos_gt.txt')
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\evaluation\ap_aos_gt.txt')
 
+    parser.add_argument('--eval_mode', type=str, default='2D')
 
     parser.add_argument('--eval_tool', type=str, default='matlab')                        
 
+    parser.add_argument('--config', type=MultiviewX_Config, default=mx_opts)
 
     args = parser.parse_args()
     print('Settings:')
@@ -130,7 +137,7 @@ def main():
     args = parse()
 
     # Data
-    dataset = frameDataset(MultiviewC(root=args.root), split='val')
+    dataset = frameDataset(MultiviewX(root=args.root), split='val')
 
     # Create dataloader
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=0, collate_fn=collate)  
@@ -139,7 +146,10 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
 
     # Build model
-    model = MOFTNet().to(device)             
+    model = MOFTNet(grid_height=args.config.grid_h, 
+                       cube_size=args.config.cube_size,
+                       grid_scale=args.config.grid_scale,
+                       mode=args.config.mode).to(device)
 
     # Create encoder
     encoder = ObjectEncoder(dataset)   
@@ -148,13 +158,14 @@ def main():
     resume_dir = os.path.join(args.savedir, args.resume, 'checkpoints', args.checkpoint)      
     model = resume(resume_dir, model)
 
+   
     APAOS_pred = FormatAPAOSData(args.ap_aos_dir_pred, 'pred')
     APAOS_gt = FormatAPAOSData(args.ap_aos_dir_gt, 'gt')
 
     PR_pred = FormatPRData(args.pr_dir_pred)
     PR_gt = FormatPRData(args.pr_dir_gt)
 
-    if not APAOS_pred.exist() or not APAOS_gt.exist() or not PR_pred.exist() or not PR_gt.exist():
+    if not PR_pred.exist() or not PR_gt.exist() or not APAOS_pred.exist() or not APAOS_gt.exist():
         with tqdm(iterable=dataloader, desc=f'[EVALUATE] ', postfix=dict, mininterval=1) as pbar:
             for batch_idx, (_, images, objects, _, calibs, grid) in enumerate(dataloader):
                 with torch.no_grad():
@@ -162,8 +173,9 @@ def main():
                     encoded_pred = model(images, calibs, grid)
                     preds = encoder.batch_decode(encoded_pred, args.cls_thresh)
 
-                    APAOS_pred.add_item(preds, batch_idx)
-                    APAOS_gt.add_item(objects[0], batch_idx)
+                    if args.eval_mode == '3D':
+                        APAOS_pred.add_item(preds, batch_idx)
+                        APAOS_gt.add_item(objects[0], batch_idx)
 
                     PR_pred.add_item(preds, batch_idx)
                     PR_gt.add_item(objects[0], batch_idx)
@@ -175,12 +187,13 @@ def main():
         PR_pred.save()
         PR_gt.save()
 
-    recall, precision, moda, modp = evaluate_rcll_prec_moda_modp(args.pr_dir_pred, args.pr_dir_gt, dataset='MultiviewC', eval=args.eval_tool)
-    AP_75, AOS_75, OS_75, AP_50, AOS_50, OS_50, AP_25, AOS_25, OS_25 = evaluate_ap_aos(args.ap_aos_dir_pred, args.ap_aos_dir_gt)
+    recall, precision, moda, modp = evaluate_rcll_prec_moda_modp(args.pr_dir_pred, args.pr_dir_gt, dataset='MultiviewX', eval=args.eval_tool)
     print(f'{args.eval_tool} eval: MODA {moda:.1f}, MODP {modp:.1f}, prec {precision:.1f}, rcll {recall:.1f}')
-    print("AP_75: %.2f" % AP_75, " ,AOS_75: %.2f" % AOS_75, ", OS_75: %.2f" % OS_75)
-    print("AP_50: %.2f" % AP_50, " ,AOS_50: %.2f" % AOS_50, ", OS_50: %.2f" % OS_50)
-    print("AP_25: %.2f" % AP_25, " ,AOS_25: %.2f" % AOS_25, ", OS_25: %.2f" % OS_25)
+    if args.eval_mode == '3D':
+        AP_75, AOS_75, OS_75, AP_50, AOS_50, OS_50, AP_25, AOS_25, OS_25 = evaluate_ap_aos(args.ap_aos_dir_pred, args.ap_aos_dir_gt)
+        print("AP_75: %.2f" % AP_75, " ,AOS_75: %.2f" % AOS_75, ", OS_75: %.2f" % OS_75)
+        print("AP_50: %.2f" % AP_50, " ,AOS_50: %.2f" % AOS_50, ", OS_50: %.2f" % OS_50)
+        print("AP_25: %.2f" % AP_25, " ,AOS_25: %.2f" % AOS_25, ", OS_25: %.2f" % OS_25)
 
 if __name__ == '__main__':
     main()

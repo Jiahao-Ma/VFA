@@ -11,7 +11,7 @@ EPSILON = 1e-6
 MAXIMUM_AREA_RATIO = 0.3
 
 class OFT(nn.Module):
-    def __init__(self, channel, grid_height=160, cube_size=(25, 25, 32), scale=1):
+    def __init__(self, channel, grid_height=160, cube_size=(25, 25, 32), feat_scale=1, grid_scale=1):
         super(OFT, self).__init__()
         self.cube_height = cube_size[2]
         z_corners = torch.arange(0, grid_height, cube_size[2])
@@ -21,21 +21,22 @@ class OFT(nn.Module):
         self.register_buffer('z_corners', z_corners)
         self.register_buffer('corners_offset', corners_offset)
 
-        self.scale = scale
+        self.feat_scale = feat_scale
+        self.grid_scale = grid_scale
         self.collapse = nn.Linear(channel * num_grid_layer, channel)
 
-    def forward(self, feature, calib, grid, crange=(-1, 0.975), visualize=False):
+    def forward(self, feature, calib, grid, crange=(-1, 0.95), visualize=False, cam=None):
         # feature: (1, 512, 90, 160), calib: (3, 4), grid: (1, 156, 156, 3) z_corners: (8, 1, 1, 3)
         # corners: (1, 5, 156, 156, 3) = grid: (1, 1, 156, 156, 3) + z_corners: (5, 1, 1, 3)
         corners = grid.unsqueeze(0) + self.z_corners.view(-1, 1, 1, 3)
         corners = corners.unsqueeze(-2) #(1, 5, 156, 156, 1, 3)
         corners3d = corners.repeat((1,1,1,1,8,1)) + self.corners_offset.to(device=corners.device) #(1, 5, 156, 156, 8, 3)
-        
+        corners3d /= self.grid_scale
         calib = calib.view(-1, 1, 1, 1, 1, 3, 4)
         img_corners3d = project(corners3d, calib) #(1, 5, 156, 156, 8, 2)
         
         feature_height, feature_width = feature.size()[2:]
-        img_size = corners.new([feature_width, feature_height]) / self.scale
+        img_size = corners.new([feature_width, feature_height]) / self.feat_scale
         norm_corners3d = (2 * img_corners3d / img_size - 1).clamp(crange[0], crange[1]) #(1, 5, 156, 156, 8, 2)
         # norm_corners3d = (2 * img_corners3d / img_size - 1).clamp(-1, 1) #(1, 5, 156, 156, 8, 2) # Adjust the influence of the image boundary
 
@@ -53,11 +54,13 @@ class OFT(nn.Module):
         if visualize:
             centers3d = corners.clone()
             centers3d[..., -1] += self.cube_height * 0.5
+            centers3d /= self.grid_scale
             img_corners_center = project(centers3d, calib)
             norm_corners_center = img_corners_center / img_size #(1, 5, 156, 156, 8, 2)
             box_center = norm_corners_center.flatten(2, 3) 
             # transform the box_corners range from [-1, 1] to [0, 1]
             viz_box_corners = ( box_corners + 1 ) / 2
+           
             self.visualize_cube(feature, viz_box_corners, box_center)
         
         # Compute the area of each bounding box
@@ -92,12 +95,11 @@ class OFT(nn.Module):
         corners_3d = np.vstack([x, y, z]).T # (8, 3)
         return corners_3d
     
-    def visualize_cube(self, feature, box_corners, box_centers, viz_interval=20, viz_center=True, viz_rect=True):
+    def visualize_cube(self, feature, box_corners, box_centers, viz_interval=10, viz_center=False, viz_rect=True):
         viz_feature = torch.norm(feature, dim=1).squeeze(0).squeeze(0).detach().cpu().numpy().astype(np.uint8)
         f_H, f_W = viz_feature.shape
         fig = plt.figure(figsize=(15, 8))
         ax = fig.add_subplot(111)
-        
         # ONLY visualize the first layer of grid
         box_corners = box_corners[0, 0]
         box_centers = box_centers[0, 0].squeeze(-2)
@@ -123,7 +125,7 @@ class OFT(nn.Module):
         if viz_center:
             ax.scatter(box_centers[:, 0], box_centers[:, 1], s=2, c='black')
         ax.imshow(viz_feature)
-        # ax.axis('off')
+        ax.axis('off')
         plt.xlim(0, f_W)
         plt.ylim(f_H, 0)
         plt.show()

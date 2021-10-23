@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib import cm
-
+from PIL import Image
 from moft.utils import to_numpy, grid_rot180
-from .bbox import draw_3DBBox
-
+from moft.data.multiviewX import MultiviewX
+from .bbox import draw_3DBBox, project
 def visualize_image(image):
     # image format: (3, H, W) value range: (0, 1)
     # reverse tensor to RGB image
@@ -21,23 +21,6 @@ def visualize_heatmap(pred, gt):
 
     return fig
     
-def visualize_bboxes(image, calibs, objects, preds):
-    MAXCOLOR=40
-    fig = plt.figure(num='bbox', figsize=(10, 8))
-    fig.clear()
-
-    ax1 = plt.subplot(211)
-    ax2 = plt.subplot(212)
-
-    cmap = cm.get_cmap('tab20', MAXCOLOR)
-
-    _format_bboxes(image, calibs, objects, cmap=cmap, ax=ax1)
-    ax1.set_title('GroundTruth')
-
-    _format_bboxes(image, calibs, preds, ax=ax2)
-    ax2.set_title('Prediction')
-
-    return fig
 
 
 def _format_heatmap(heatmap, ax=None):
@@ -59,6 +42,24 @@ def _format_heatmap(heatmap, ax=None):
 
     return ax
 
+def visualize_bboxes(image, calibs, objects, preds):
+    MAXCOLOR=40
+    fig = plt.figure(num='bbox', figsize=(10, 8))
+    fig.clear()
+
+    ax1 = plt.subplot(211)
+    ax2 = plt.subplot(212)
+
+    cmap = cm.get_cmap('tab20', MAXCOLOR)
+
+    _format_bboxes(image, calibs, objects, cmap=cmap, ax=ax1)
+    ax1.set_title('GroundTruth')
+
+    _format_bboxes(image, calibs, preds, ax=ax2)
+    ax2.set_title('Prediction')
+
+    return fig
+
 def _format_bboxes(image, calib, objects, cmap=None, ax=None):
     if ax is None:
         fig, ax = plt.subplots()
@@ -78,4 +79,48 @@ def _format_bboxes(image, calib, objects, cmap=None, ax=None):
     ax.axis(extents)
     ax.axis(False)
     ax.grid(False)
+    return ax
+
+def visualize_bottom(image, calibs, objects, preds, args):
+
+    fig = plt.figure(num='bbox', figsize=(10, 8))
+    fig.clear()
+
+    ax1 = plt.subplot(211)
+    ax2 = plt.subplot(212)
+
+    _format_bottom(image, calibs, objects, args, ax=ax1)
+    ax1.set_title('GroundTruth')
+
+    _format_bottom(image, calibs, preds, args, ax=ax2)
+    ax2.set_title('Prediction')
+
+    return fig
+
+def _format_bottom(image, calib, objects, args, ax=None):
+    if ax is None:
+        fig, ax = plt.subplots()
+    ax.clear()
+
+    # Visualize image
+    image = Image.fromarray(visualize_image(image).transpose(1, 2, 0))
+    image = image.resize(args.image_size[::-1])
+    ax.imshow(image)
+    extents = ax.axis()
+    ax.axis(extents)
+    ax.axis(False)
+    ax.grid(False)
+
+    # Construct homography coord of bottom
+    loc = list()
+    for obj in objects:
+        worldcoord = np.zeros((3), dtype=np.float32)
+        worldcoord[:2] = MultiviewX.get_worldcoord_from_worldgrid(to_numpy(obj.location[:2]))
+        loc.append(worldcoord)
+    loc = np.array(loc).reshape(-1, 3)
+    bottom3d = np.concatenate([loc, np.ones((loc.shape[0], 1))], axis=1)
+    bottom2d = project(bottom3d, to_numpy(calib))
+
+    # Visualize bottom center 
+    ax.scatter(bottom2d[:, 0], bottom2d[:, 1], s=4, c='red')
     return ax

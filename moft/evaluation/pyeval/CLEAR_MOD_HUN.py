@@ -7,7 +7,7 @@ def getDistance(x1, y1, x2, y2):
     return math.sqrt(pow((x1 - x2), 2) + pow((y1 - y2), 2))
 
 
-def CLEAR_MOD_HUN(gt, det, distance_threshold=30):
+def CLEAR_MOD_HUN(gt, det):
     """
     @param gt: the ground truth result matrix
     @param det: the detection result matrix
@@ -24,8 +24,8 @@ def CLEAR_MOD_HUN(gt, det, distance_threshold=30):
     [3]	MODA          - N-MODA
     [4]	MODP          - N-MODP
     """
-    
-    td = distance_threshold  
+    # td = 50/2.5  # distance threshold
+    td = 78  # distance threshold
 
     F = int(max(gt[:, 0])) + 1
     N = int(max(det[:, 1])) + 1
@@ -75,6 +75,8 @@ def CLEAR_MOD_HUN(gt, det, distance_threshold=30):
                 u, v = HUN_res[HUN_res[:, 1].argsort()].T
                 for mmm in range(1, len(u) + 1): # 1~3
                     M[t - 1, u[mmm - 1]] = v[mmm - 1] + 1
+
+        # 获得一一对应的关系，得出两个list，一个list是gt，另一个list是和当前gt对应的pred（带角度）
 
         curdetected, = np.where(M[t - 1, :])
         c[0][t - 1] = curdetected.shape[0]

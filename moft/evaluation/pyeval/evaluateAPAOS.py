@@ -1,4 +1,8 @@
 import numpy as np
+from scipy.optimize import linear_sum_assignment
+import math
+import shapely
+from shapely.geometry import Polygon, MultiPoint    # 多边形计算的库
 from .IoU import IoU3D
 import torch
 
@@ -62,6 +66,7 @@ def CLEAR_MOD_HUN2(gt, det, thresh):
 
 
 def cal_frame_TPFP_iou(dist_threshold, gt_res, pred_res):
+    
     # 0     1           2           3   4       5     6       7
     # score, frame_idx, iou, delta_ori, TP/FP?, prec, recall, aos
     frame_gt_det_match = np.zeros(shape=(pred_res.shape[0], 8)) - 1

@@ -1,12 +1,19 @@
 import torch
 import os, sys
+import numpy as np
 sys.path.append(os.getcwd())
 os.environ['KMP_DUPLICATE_LIB_OK']='True'
-import numpy as np
-from torchvision.transforms.functional import to_tensor
+from collections import namedtuple
 from collections import defaultdict
 
-def make_grid(world_size=(3900, 3900), grid_offset=(0, 0, 0), cube_LW=30):
+# for MultiviewC, MVM3D dataset
+Obj3D = namedtuple('Obj3D',
+        ['classname', 'dimension', 'location', 'rotation', 'conf'])
+# for MultiviewX, WildTrack dataset
+Obj2D = namedtuple('Obj2D', 
+        ['classname', 'location', 'conf'])
+
+def make_grid(world_size=(3900, 3900), grid_offset=(0, 0, 0), cube_LW=[25, 25]):
     """
         *********
         *       *
@@ -17,8 +24,8 @@ def make_grid(world_size=(3900, 3900), grid_offset=(0, 0, 0), cube_LW=30):
     length, width = world_size
     xoff, yoff, zoff = grid_offset
 
-    xcoords = torch.arange(0., width, cube_LW) + xoff
-    ycoords = torch.arange(0., length, cube_LW) + yoff
+    xcoords = torch.arange(0., width, cube_LW[0]) + xoff
+    ycoords = torch.arange(0., length, cube_LW[1]) + yoff
     
     yy, xx = torch.meshgrid(ycoords, xcoords)
     return torch.stack([xx, yy, torch.full_like(xx, zoff)], dim=-1)
@@ -75,3 +82,10 @@ def grid_rot180(arr):
         arr = arr[:, ::-1, :]
         arr = arr[:, :, ::-1]
     return arr
+
+def record(save_dir, content):
+    if not os.path.exists(os.path.dirname(save_dir)):
+        os.mkdir(os.path.dirname(save_dir))
+        
+    with open(save_dir, encoding='utf-8', mode='a') as f:
+        f.write(content)

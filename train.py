@@ -13,36 +13,41 @@ from moft.model.oftnet import MOFTNet
 from moft.trainer import Trainer
 from torch.utils.data import DataLoader
 from moft.utils import collate
-from moft.data.dataset import frameDataset, MultiviewC
+from moft.data.dataset import frameDataset, MultiviewC, MultiviewX
 from moft.data.encoder import ObjectEncoder
+from moft.config import *
 
-def parse():
+def parse(opts):
+
     parser = ArgumentParser()
 
     #Data options
-    parser.add_argument('--root', type=str, default=r'\Data\MultiviewC_dataset',
+    parser.add_argument('--root', type=str, default=opts.root,
                         help='root directory of MultiviewC dataset')
+
+    parser.add_argument('--mode', type=str, default=opts.mode,
+                        help='2D/3D mode determines the detection task.')
     
-    parser.add_argument('--world_size', type=int, nargs=2, default=(3900, 3900), 
+    # MultiviewC: (3900, 3900), MultiviewX: (640, 1000)
+    parser.add_argument('--world_size', type=int, nargs=2, default=opts.world_size, 
                         help='width and length of designed grid')
 
-    parser.add_argument('--cube_LW', type=int, default=25, 
-                        help='width and length of each cube of designed grid')
-
-    parser.add_argument('--cube_H', type=int, default=32, 
-                        help='height of each cube of designed grid')
-    
-    parser.add_argument('--image_size', type=int, nargs=2, default=(720, 1080),
+    # MultiviewC: (720, 1080), MultiviewX: (1080, 1920)
+    parser.add_argument('--image_size', type=int, nargs=2, default=opts.image_size,
                         help='height and width of image')
     
-    parser.add_argument('--ann', type=str, default='annotations',
+    parser.add_argument('--resize_size', type=int, nargs=2, default=opts.resize_size,
+                        help='resized height and width of image')
+    
+    
+    parser.add_argument('--ann', type=str, default=opts.ann,
                         help='annotation of MultiviewC dataset')
                         
-    parser.add_argument('--calib', type=str, default='calibrations',
+    parser.add_argument('--calib', type=str, default=opts.calib,
                         help='calibrations of MultiviewC dataset')
 
     # Training options
-    parser.add_argument('-e', '--epochs', type=int, default=40,
+    parser.add_argument('-e', '--epochs', type=int, default=30,
                         help='the number of epochs for training')
     
     parser.add_argument('-b', '--batch_size', type=int, default=1,
@@ -60,17 +65,26 @@ def parse():
     
 
     # Model options
-    parser.add_argument('--grid_h', type=int, default=160, 
+    # MultiviewC: 160, MultiviewX: 32
+    parser.add_argument('--grid_h', type=int, default=opts.grid_h, 
                     help='height of designed grid')
-    
-    parser.add_argument('--cube_size', type=int, default=(25, 25, 32), 
+
+    # MultiviewC: (25, 25, 32), MultiviewX: (4, 4, 4)
+    parser.add_argument('--cube_size', type=int, default=opts.cube_size,  
                         help='the size of cube of designed grid')
 
-    parser.add_argument('--topdown', type=int, default=0,
+    parser.add_argument('--grid_scale', type=int, default=opts.grid_scale,
+                        help='make the ratio and scale of grid correspond, \
+                              which also project the design voxel to image successfully.')
+
+    parser.add_argument('--topdown', type=int, default=0, # discarded
                         help='the number of residual blocks in topdown network')
 
     parser.add_argument('--angle_range', type=int, default=360,
                         help='the range of angle prediction for circle smooth label (CSL)')
+
+    parser.add_argument('--pretrained', type=bool, default=True,
+                        help='load the pretrained checkpoint of feature extractor eg. resnet18')                        
 
     # Training options
     parser.add_argument('--seed', type=int, default=1, 
@@ -86,8 +100,11 @@ def parse():
                         default=None)
 
     # Experiment options
-    parser.add_argument('--loss_weight', type=float, nargs=4, default=[2, 1., 1., 1],
-                        help='the weight of each loss including heatmap, location, dimension and rotation')
+    # MultiviewC 3D detection: heatmap, location, dimension and rotation. loss_weight has 4 weights in total.
+    # MultiviewX 2D detection: heatmap and location. loss_weight has 2 weights in total.
+    parser.add_argument('--loss_weight', type=float, nargs=4, default=opts.loss_weight,
+                        help='the 3D weight of each loss including heatmap, location, dimension and rotation;\
+                             or 2D weight of each loss only including heatmap and location.')
 
     parser.add_argument('--print_iter', type=int, default=1,
                         help='print loss summary every N iterations')
@@ -95,13 +112,13 @@ def parse():
     parser.add_argument('--vis_iter', type=int, default=50,
                         help='display visualizations every N iterations')
 
-    parser.add_argument('--cls_thresh', type=float, default=0.5,
+    parser.add_argument('--cls_thresh', type=float, default=0.8,
                         help='positive sample confidence threshold')                        
 
     parser.add_argument('--topk', type=int, default=50,
                         help='the number of positive samples after nms')                        
     
-    parser.add_argument('--start_save', type=int, default=10,
+    parser.add_argument('--start_save', type=int, default=5,
                         help='After `start_save` epochs, model starts to save.')
     
     parser.add_argument('--copy_repo', type=bool, default=True,
@@ -172,23 +189,33 @@ def resume(resume_dir, model, optimizer, scheduler, device):
     print("Model resume training from %s" %resume_dir)
     return model, optimizer, scheduler, epoch
 
-def train():
+def train(opts):
     # Parse commond argument
-    args = parse()
+    args = parse(opts)
     
     # Setup random seed
     setup_seed(args.seed)
 
     #TODO: Add view-coherent data augmentation
     # Data augmentaion for training dataset 
-    train_transform = transforms.Compose([transforms.ColorJitter(brightness=0.2, contrast=0.2, hue=0.2),
-                                    transforms.ToTensor()])
+    train_transform = transforms.Compose([transforms.Resize(args.resize_size),
+                                          transforms.ColorJitter(brightness=0.2, contrast=0.2, hue=0.2),
+                                          transforms.ToTensor()])
     # Create datasets
-    train_data = frameDataset(MultiviewC(root=args.root, ann_root=args.ann, calib_root=args.calib), transform=train_transform,
-                              world_size=args.world_size, cube_LW=args.cube_LW, cube_H=args.cube_H, split='train')
-    
-    val_data = frameDataset(MultiviewC(root=args.root, ann_root=args.ann, calib_root=args.calib),\
-                              world_size=args.world_size, cube_LW=args.cube_LW, cube_H=args.cube_H, split='val')
+    if opts.name == 'MultiviewC':
+        train_data = frameDataset(MultiviewC(root=args.root, ann_root=args.ann, calib_root=args.calib, 
+                                             world_size=args.world_size, cube_LWH=args.cube_size), 
+                                             transform=train_transform, split='train')
+        
+        val_data = frameDataset(MultiviewC(root=args.root, ann_root=args.ann, calib_root=args.calib, 
+                                           world_size=args.world_size, cube_LWH=args.cube_size),
+                                           split='val')
+    elif opts.name == 'MultiviewX':
+        train_data = frameDataset(MultiviewX(root=args.root, world_size=args.world_size, cube_LWH=args.cube_size), 
+                                             transform=train_transform, split='train')
+        
+        val_data = frameDataset(MultiviewX(root=args.root, world_size=args.world_size, cube_LWH=args.cube_size),
+                                           split='val')
 
     # Create dataloader
     train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=0, collate_fn=collate)
@@ -198,8 +225,9 @@ def train():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Build model
-    model = MOFTNet(grid_height=args.grid_h, cube_size=args.cube_size, 
-                    angle_range=args.angle_range).to(device)
+    if args.model_type == 'moftnet':
+        model = MOFTNet(grid_height=args.grid_h, cube_size=args.cube_size, angle_range=args.angle_range,
+                        grid_scale=args.grid_scale, mode=args.mode, pretrained=args.pretrained).to(device)
 
     # Create encoder
     encoder = ObjectEncoder(train_data, topk=args.topk)
@@ -233,10 +261,18 @@ def train():
         val_loss = trainer.validate(val_loader, encoder, epoch, args)
 
         summary.add_scalars('loss', {'train_loss': train_loss['loss'], 'val_loss' : val_loss['loss']}, epoch)
-        if epoch > args.start_save:
+        # if epoch > args.start_save:
+        if epoch % 5 == 0:
             save(model, epoch, args, optimizer, scheduler, train_loss, val_loss)
 
 
 if __name__ == '__main__':
-    train()
+
+    # MultiviewC
+    # train(mc_opts)
+
+    # MultiviewX 
+    train(mx_opts)
+
+    # os.system('shutdown /s /t 10')
         
