@@ -5,13 +5,45 @@ import torch.nn as nn
 import torch.nn.functional as F
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from moft.data.wildtrack import Wildtrack
+from moft.data.multiviewX import MultiviewX
+from moft.data.multiviewC import MultiviewC
 from moft.utils import project
 
 EPSILON = 1e-6
 MAXIMUM_AREA_RATIO = 0.3
 
+""" 
+#--------------------------------------#
+-    Convert worldgrid to worldcoord   -
+#--------------------------------------#
+"""
+# MultiviewC
+def mc_convert(grid, scale=1.):
+    return grid / scale
+
+# MultiviewX
+def mx_convert(grid, scale=40.):
+    return grid / scale
+
+# Wildtrack
+def wt_convert(grid, scale=2.5):
+    grid[..., 0] = grid[..., 0] * scale - 300   # x
+    grid[..., 1] = grid[..., 1] * scale - 900   # y
+    grid[..., 2] = grid[..., 2] * scale         # z
+    return grid
+
+def convert(grid, args):
+    if args.data == MultiviewC.__name__:
+        coord = mc_convert(grid)
+    elif args.data == MultiviewX.__name__:
+        coord = mx_convert(grid)
+    elif args.data == Wildtrack.__name__:
+        coord = wt_convert(grid)
+    return coord
+
 class OFT(nn.Module):
-    def __init__(self, channel, grid_height=160, cube_size=(25, 25, 32), feat_scale=1, grid_scale=1):
+    def __init__(self, channel, grid_height=160, cube_size=(25, 25, 32), feat_scale=1, args=None):
         super(OFT, self).__init__()
         self.cube_height = cube_size[2]
         z_corners = torch.arange(0, grid_height, cube_size[2])
@@ -22,7 +54,7 @@ class OFT(nn.Module):
         self.register_buffer('corners_offset', corners_offset)
 
         self.feat_scale = feat_scale
-        self.grid_scale = grid_scale
+        self.args = args
         self.collapse = nn.Linear(channel * num_grid_layer, channel)
 
     def forward(self, feature, calib, grid, crange=(-1, 0.95), visualize=False, cam=None):
@@ -31,7 +63,9 @@ class OFT(nn.Module):
         corners = grid.unsqueeze(0) + self.z_corners.view(-1, 1, 1, 3)
         corners = corners.unsqueeze(-2) #(1, 5, 156, 156, 1, 3)
         corners3d = corners.repeat((1,1,1,1,8,1)) + self.corners_offset.to(device=corners.device) #(1, 5, 156, 156, 8, 3)
-        corners3d /= self.grid_scale
+        # convert worldgrid to world coord
+        corners3d = convert(corners3d, self.args)
+
         calib = calib.view(-1, 1, 1, 1, 1, 3, 4)
         img_corners3d = project(corners3d, calib) #(1, 5, 156, 156, 8, 2)
         
@@ -54,13 +88,14 @@ class OFT(nn.Module):
         if visualize:
             centers3d = corners.clone()
             centers3d[..., -1] += self.cube_height * 0.5
-            centers3d /= self.grid_scale
+            # convert worldgrid to world coord
+            centers3d = convert(centers3d, self.args)
+            
             img_corners_center = project(centers3d, calib)
             norm_corners_center = img_corners_center / img_size #(1, 5, 156, 156, 8, 2)
             box_center = norm_corners_center.flatten(2, 3) 
             # transform the box_corners range from [-1, 1] to [0, 1]
             viz_box_corners = ( box_corners + 1 ) / 2
-           
             self.visualize_cube(feature, viz_box_corners, box_center)
         
         # Compute the area of each bounding box
@@ -129,7 +164,7 @@ class OFT(nn.Module):
         plt.xlim(0, f_W)
         plt.ylim(f_H, 0)
         plt.show()
-
+        
     def integral_image(self, features):
         return torch.cumsum(torch.cumsum(features, dim=-1), dim=-2)
 

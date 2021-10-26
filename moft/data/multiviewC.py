@@ -68,7 +68,7 @@ class MultiviewC(VisionDataset):
         self.intrinsic_matrices, self.extrinsic_matrices, self.R_z = zip(
             *[self.get_intrinsic_extrinsic_matrix(cam, root=self.calib_root) for cam in range(self.num_cam)])
 
-        self.RGK = RotationGaussianKernel()
+        self.RGK = RotationGaussianKernel(save_dir=r'moft/data/mc_RGK.npy')
         self.reload_RGK=reload_RGK
         self.classAverage = ClassAverage(classes=['Cow'])
         self.labels, self.heatmaps = self.download()

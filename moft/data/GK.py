@@ -3,9 +3,10 @@ import torch
 import numpy as np
 from scipy.stats import multivariate_normal
 import torch.nn.functional as F
+import matplotlib.pyplot as plt
 class RotationGaussianKernel(object):
     # rotated gaussian kernel
-    def __init__(self, save_dir=r'moft/data/RGK.npy',
+    def __init__(self, save_dir,
                  alpha=0.01,
                  GKRatio=8):
         self.save_dir = save_dir
@@ -146,7 +147,7 @@ class RotationGaussianKernel(object):
 
 class GaussianKernel(object):
     def __init__(self, 
-                save_dir=r'moft/data/GK.npy',
+                save_dir,
                 grid_reduce = 4
                 ):
         self.save_dir = save_dir
@@ -169,11 +170,13 @@ class GaussianKernel(object):
         if isinstance(self.heatmaps, list):
             self.heatmaps = np.stack(self.heatmaps, axis=0)
         heatmaps = torch.Tensor(self.heatmaps)[:, None, :, :].to(device) # bs, 1, h, w
-        with torch.no_grad():
+        mask = torch.where(heatmaps == 1.)
+        with torch.no_grad(): # BUG found here! after conv, gt lost!
             heatmaps = F.conv2d(heatmaps, self.map_kernel.float().to(device), \
                                 padding=int((self.map_kernel.shape[-1] - 1) / 2))
+            heatmaps[mask] = 1.
         self.heatmaps = heatmaps.squeeze(1).cpu().numpy()
-
+       
     def add_item(self, heatmap):
         self.heatmaps.append(heatmap)
 
@@ -198,7 +201,8 @@ class GaussianKernel(object):
 
     def viz_gk(self):
         import matplotlib.pyplot as plt
-        heatmap = self.heatmaps[np.random.randint(len(self.heatmaps))]
+        # heatmap = self.heatmaps[np.random.randint(len(self.heatmaps))]
+        heatmap = self.heatmaps[0]
         heatmap = (heatmap * 255).clip(0, 255).astype(np.uint8)
         plt.imshow(heatmap)
         plt.show()

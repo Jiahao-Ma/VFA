@@ -13,7 +13,7 @@ intrinsic_camera_matrix_filenames = ['intr_Camera1.xml', 'intr_Camera2.xml', 'in
 extrinsic_camera_matrix_filenames = ['extr_Camera1.xml', 'extr_Camera2.xml', 'extr_Camera3.xml', 'extr_Camera4.xml',
                                      'extr_Camera5.xml', 'extr_Camera6.xml']
 
-MULTIVIEWC_BBOX_LABEL_NAMES = ['Person']
+MULTIVIEWX_BBOX_LABEL_NAMES = ['Person']
 
 class MultiviewX(VisionDataset):
     grid_reduce = 4
@@ -33,11 +33,11 @@ class MultiviewX(VisionDataset):
         self.grid_reduce, self.img_reduce = MultiviewX.grid_reduce, MultiviewX.img_reduce 
         self.reduced_grid_size = list(map(lambda x: int(x / self.grid_reduce), self.world_size)) # 160, 250
         self.reload_GK = reload_GK
-        self.label_names = MULTIVIEWC_BBOX_LABEL_NAMES
+        self.label_names = MULTIVIEWX_BBOX_LABEL_NAMES
         self.intrinsic_matrices, self.extrinsic_matrices = zip(
             *[self.get_intrinsic_extrinsic_matrix(cam) for cam in range(self.num_cam)])
 
-        self.GK = GaussianKernel()
+        self.GK = GaussianKernel(save_dir=r'moft/data/mx_GK.npy')
         # different from 3D detection task, we only focus on the location detection on MultiviewX 
         # # different from 3D detection task. Thus, `classAverage` is None by default.
         self.classAverage = None 

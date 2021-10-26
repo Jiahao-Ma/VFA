@@ -4,6 +4,7 @@ from matplotlib import cm
 from PIL import Image
 from moft.utils import to_numpy, grid_rot180
 from moft.data.multiviewX import MultiviewX
+from moft.data.wildtrack import Wildtrack
 from .bbox import draw_3DBBox, project
 def visualize_image(image):
     # image format: (3, H, W) value range: (0, 1)
@@ -16,8 +17,8 @@ def visualize_heatmap(pred, gt):
     fig = plt.figure(num='heatmap', figsize=(8, 6))
     fig.clear()
 
-    _format_heatmap(pred[0, 0], ax=plt.subplot(121))
-    _format_heatmap(gt[0, 0], ax=plt.subplot(122))
+    _format_heatmap(pred[0, 0], ax=plt.subplot(211))
+    _format_heatmap(gt[0, 0], ax=plt.subplot(212))
 
     return fig
     
@@ -97,7 +98,7 @@ def visualize_bottom(image, calibs, objects, preds, args):
 
     return fig
 
-def _format_bottom(image, calib, objects, args, ax=None):
+def _format_bottom(image, calib, objects, args, ax=None, height=None):
     if ax is None:
         fig, ax = plt.subplots()
     ax.clear()
@@ -112,15 +113,38 @@ def _format_bottom(image, calib, objects, args, ax=None):
     ax.grid(False)
 
     # Construct homography coord of bottom
-    loc = list()
+    bottom = list()
+    head = list()
     for obj in objects:
         worldcoord = np.zeros((3), dtype=np.float32)
-        worldcoord[:2] = MultiviewX.get_worldcoord_from_worldgrid(to_numpy(obj.location[:2]))
-        loc.append(worldcoord)
-    loc = np.array(loc).reshape(-1, 3)
-    bottom3d = np.concatenate([loc, np.ones((loc.shape[0], 1))], axis=1)
-    bottom2d = project(bottom3d, to_numpy(calib))
+        if args.data == MultiviewX.__name__:
+            worldcoord[:2] = MultiviewX.get_worldcoord_from_worldgrid(to_numpy(obj.location[:2]))
+        elif args.data == Wildtrack.__name__:
+            worldcoord[:2] = Wildtrack.get_worldcoord_from_worldgrid(to_numpy(obj.location[:2]))
+            if height is not None:
+                obj.location[2] = height
+                headcoord = Wildtrack.get_worldcoord_from_worldgrid(to_numpy(obj.location))
+        else:
+            raise ValueError('Unknow dataset. Expect {} and {}, but got{}.'\
+                            .format(MultiviewX.__name__, 
+                                    Wildtrack.__name__,
+                                    args.data
+                                    ))
+        bottom.append(worldcoord)
+        if height is not None:
+            head.append(headcoord)
 
+    bottom = np.array(bottom).reshape(-1, 3)
+    bottom3d = np.concatenate([bottom, np.ones((bottom.shape[0], 1))], axis=1)
+    bottom2d = project(bottom3d, to_numpy(calib))
     # Visualize bottom center 
-    ax.scatter(bottom2d[:, 0], bottom2d[:, 1], s=4, c='red')
+    ax.scatter(bottom2d[:, 0], bottom2d[:, 1], s=5, c='red')
+
+    if height is not None:
+        head = np.array(head).reshape(-1, 3)
+        head3d = np.concatenate([head, np.ones((head.shape[0], 1))], axis=1)
+        head2d = project(head3d, to_numpy(calib))
+
+        # Visualize bottom center 
+        ax.scatter(head2d[:, 0], head2d[:, 1], s=5, c='yellow')
     return ax

@@ -182,8 +182,9 @@ def main():
                    
                 pbar.update(1)
         # Save 
-        APAOS_pred.save()
-        APAOS_gt.save()
+        if args.eval_mode == '3D':
+            APAOS_pred.save()
+            APAOS_gt.save()
         PR_pred.save()
         PR_gt.save()
 

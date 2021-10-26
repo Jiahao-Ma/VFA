@@ -13,7 +13,7 @@ Obj3D = namedtuple('Obj3D',
 Obj2D = namedtuple('Obj2D', 
         ['classname', 'location', 'conf'])
 
-def make_grid(world_size=(3900, 3900), grid_offset=(0, 0, 0), cube_LW=[25, 25]):
+def make_grid(world_size=(3900, 3900), grid_offset=(0, 0, 0), cube_LW=[25, 25], dataset='Wildtrack'):
     """
         *********
         *       *
@@ -21,13 +21,19 @@ def make_grid(world_size=(3900, 3900), grid_offset=(0, 0, 0), cube_LW=[25, 25]):
         *********
                 x
     """
-    length, width = world_size
+    if dataset == 'Wildtrack':
+        length, width = world_size[::-1]
+    else:
+        length, width = world_size
+        
     xoff, yoff, zoff = grid_offset
-
     xcoords = torch.arange(0., width, cube_LW[0]) + xoff
     ycoords = torch.arange(0., length, cube_LW[1]) + yoff
     
-    yy, xx = torch.meshgrid(ycoords, xcoords)
+    if dataset == 'Wildtrack':
+        xx, yy = torch.meshgrid(xcoords, ycoords)
+    else:
+        yy, xx = torch.meshgrid(ycoords, xcoords)
     return torch.stack([xx, yy, torch.full_like(xx, zoff)], dim=-1)
 
 def collate(batch):

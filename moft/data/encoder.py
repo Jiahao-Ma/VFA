@@ -3,6 +3,8 @@ from torch.nn.modules.module import Module
 
 from tqdm.std import tqdm
 
+from moft.data.wildtrack import Wildtrack
+
 sys.path.append(os.getcwd())
 import torch
 import matplotlib.pyplot as plt
@@ -21,7 +23,6 @@ from moft.data.smooth_label import gaussian_label
 class ObjectEncoder(object):
     
     def __init__(self, dataset:frameDataset,
-                     
                      map_sigma = 1.,
                      map_kernel_size = 10,
                      angle_range=360,
@@ -38,8 +39,8 @@ class ObjectEncoder(object):
         self.topk = topk
         # MultiviewC: world_size: (3900, 3900), cube_LWH: (30, 30, 32); units of all are centimeter(cm)
         # MultiviewX: world_size: (640, 1000), real_world_size:(16m, 25m), cube_LWH:(4, 4, 36)
+        # Wildtrack: world: (480, 1440) real_world_size:(12m, 36m)
         self.world_size, self.cube_LWH = np.array(dataset.world_size), np.array(dataset.cube_LWH)
-        # self.grid_size = list( map( lambda x: x // self.cube_LWH[:2], self.world_size) )
         self.grid_size = self.world_size / self.cube_LWH[:2]
         if kernel_type == 'GK' and self.dataset.base.__name__ == 'MultiviewC':
             self.map_kernel = self.gaussian_kernel(map_sigma, map_kernel_size)
@@ -51,13 +52,13 @@ class ObjectEncoder(object):
             batch_encoded = [self.encode3d(objs, heatmap, grid) \
                         for objs, heatmap, grid in zip(objects, heatmaps, grids)]
             return batch_encoded
-        elif self.dataset.base.__name__ in ['MultiviewX', 'WildTrack']:
+        elif self.dataset.base.__name__ in ['MultiviewX', 'Wildtrack']:
             batch_encoded = [self.encode2d(objs, heatmap, grid) \
                         for objs, heatmap, grid in zip(objects, heatmaps, grids)]
             return batch_encoded
         else:
-            raise ValueError('Dataset Error: only support `MultivewC` `MVM3D` for 3D detection, \
-                                             and `MultiviewX` `WildTrack` for 2D detection.')
+            raise ValueError("""Dataset Error: only support `MultivewC` `MVM3D` for 3D detection, 
+                                and `MultiviewX` `Wildtrack` for 2D detection.""")
 
     def encode3d(self, objects:Obj3D, heatmap:torch.Tensor, grid:torch.Tensor, visualize=False):
         # Filter the object by class name. MultiviewC only has on class
@@ -150,12 +151,15 @@ class ObjectEncoder(object):
     def _assign_to_grid(self, location, grid):
         location = location[..., :2]
         # normalize locations
-        location = location / location.new(self.world_size).view(-1, 2) * grid.size()[0]
+        location = location / location.new(self.world_size).view(-1, 2) * location.new([grid.size()[:2]]) 
         foreground = grid.new_zeros(1, *grid.size()[:-1]) # B, 1, H, W
         indices = list()
         for loc in location:
             coord_x, coord_y = int(loc[0]), int(loc[1])
-            foreground[:, coord_y, coord_x] = 1.
+            if self.dataset.base.__name__ == Wildtrack.__name__:
+                foreground[:, coord_x, coord_y] = 1.
+            else:
+                foreground[:, coord_y, coord_x] = 1.
             indices.append([coord_x, coord_y])
         return foreground.unsqueeze(0), indices
 
@@ -169,14 +173,18 @@ class ObjectEncoder(object):
         # z coordinate value of target is zero by default
         # thus, location offset is (2, H, W)
         location = location[..., :2]
-        location = location / location.new(self.world_size).view(-1, 2) * grid.size()[0] # normalize location
+        location = location / location.new(self.world_size).view(-1, 2) * location.new([grid.size()[:2]])# normalize location
         location_offset = grid.new_zeros((1, 2, *grid.size()[:-1]))
         for loc in location:
             coord_x, coord_y = int(loc[0]), int(loc[1])
             offset_x = loc[0] - coord_x
             offset_y = loc[1] - coord_y
-            location_offset[:, 0, coord_y, coord_x] = offset_x
-            location_offset[:, 1, coord_y, coord_x] = offset_y
+            if self.dataset.base.__name__ == Wildtrack.__name__:
+                location_offset[:, 0, coord_x, coord_y] = offset_x
+                location_offset[:, 1, coord_x, coord_y] = offset_y
+            else:
+                location_offset[:, 0, coord_y, coord_x] = offset_x
+                location_offset[:, 1, coord_y, coord_x] = offset_y
 
         return location_offset
         
@@ -277,16 +285,19 @@ class ObjectEncoder(object):
         tytx = torch.sigmoid(tytx)
         bboxes_cy = (grid_y[None, ...] + tytx[..., 0]).flatten(start_dim=1) / self.grid_size[0] * self.world_size[0]
         bboxes_cx = (grid_x[None, ...] + tytx[..., 1]).flatten(start_dim=1) / self.grid_size[1] * self.world_size[1]
-
-        # Concatenate conf, location, dimension and rotation
+        
         _, topk_index = torch.topk(heatmap_conf, k=self.topk, dim=1)
         # output: list contain tensor [1, topk]
         output = [ torch.gather(x, dim=1, index=topk_index)
-                   for x in [heatmap_conf, bboxes_cy, bboxes_cx] ]
+                   for x in [heatmap_conf, bboxes_cy, bboxes_cx] ] # TODO: check bboxes_cx, bboxes_cy ?
         # Construct output
         mask = output[0] > cls_thresh
         conf = output[0][mask]
-        location = torch.stack([output[2][mask], output[1][mask], torch.zeros_like(output[1][mask])], dim=-1) # x y z
+       
+        if self.dataset.base.__name__ == 'Wildtrack':
+            location = torch.stack([output[1][mask], output[2][mask], torch.zeros_like(output[1][mask])], dim=-1) # x y z
+        else:
+            location = torch.stack([output[2][mask], output[1][mask], torch.zeros_like(output[1][mask])], dim=-1) # x y z
         
         return {'conf': conf,
                 'location': location
@@ -306,7 +317,7 @@ class ObjectEncoder(object):
                     rotation=batch['rotation'][i]))
             return objects
         # for MultiviewX, WildTrack dataset
-        elif self.dataset.base.__name__ in ['MultiviewX', 'WildTrack']:
+        elif self.dataset.base.__name__ in ['MultiviewX', 'Wildtrack']:
             batch = self.decode2d(pred, cls_thresh)
             objects = list()
             for i in range(len(batch['conf'])):
@@ -316,6 +327,9 @@ class ObjectEncoder(object):
                     location=batch['location'][i],
                     ))
             return objects
+        else:
+            raise ValueError("""Dataset Error: only support `MultivewC` `MVM3D` for 3D detection, 
+                                and `MultiviewX` `Wildtrack` for 2D detection.""")
 
 if __name__ == '__main__':
     from torch.utils.data import DataLoader
