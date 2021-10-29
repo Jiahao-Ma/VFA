@@ -23,7 +23,10 @@ def parse(opts):
 
     #Data options
     parser.add_argument('--root', type=str, default=opts.root,
-                        help='root directory of MultiviewC dataset')
+                        help='root directory of dataset')
+
+    parser.add_argument('--data', type=str, default=opts.name,
+                        help='the name of dataset')                        
 
     parser.add_argument('--mode', type=str, default=opts.mode,
                         help='2D/3D mode determines the detection task.')
@@ -84,7 +87,11 @@ def parse(opts):
                         help='the range of angle prediction for circle smooth label (CSL)')
 
     parser.add_argument('--pretrained', type=bool, default=True,
-                        help='load the pretrained checkpoint of feature extractor eg. resnet18')                        
+                        help='load the pretrained checkpoint of feature extractor eg. resnet18')  
+                          
+    parser.add_argument('--heatmap', type=str, default='GK',
+                        help='the type of heatmap, `RGK`, rotated gaussian kernel heatmap,\
+                              or `GK`, normal gaussian kernel')       
 
     # Training options
     parser.add_argument('--seed', type=int, default=1, 
@@ -123,7 +130,6 @@ def parse(opts):
     
     parser.add_argument('--copy_repo', type=bool, default=True,
                         help='Copy the whole repo before training')
-
 
     args = parser.parse_args()
     print('Settings:')
@@ -166,7 +172,8 @@ def save(model, epoch, args, optimizer, scheduler, train_loss, val_loss):
         'epoch' : epoch,
         'model_state_dict' : model.state_dict(),
         'optimizer_state_dict' : optimizer.state_dict(),
-        'scheduler_state_dict' : scheduler.state_dict()
+        'scheduler_state_dict' : scheduler.state_dict(),
+        'args':args
     }
     torch.save(checkpoints, os.path.join(savedir, 'Epoch{:02d}_train_loss{:.4f}_val_loss{:.4f}.pth'.\
                         format(epoch, train_loss['loss'], val_loss['loss'])))
@@ -201,21 +208,34 @@ def train(opts):
     train_transform = transforms.Compose([transforms.Resize(args.resize_size),
                                           transforms.ColorJitter(brightness=0.2, contrast=0.2, hue=0.2),
                                           transforms.ToTensor()])
+
+    val_transform = transforms.Compose([transforms.Resize(args.resize_size),
+                                          transforms.ToTensor()])
+
     # Create datasets
     if opts.name == 'MultiviewC':
-        train_data = frameDataset(MultiviewC(root=args.root, ann_root=args.ann, calib_root=args.calib, 
+        train_data = frameDataset(MultiviewC(root=args.root, heatmap_type=args.heatmap, 
+                                             ann_root=args.ann, calib_root=args.calib, 
                                              world_size=args.world_size, cube_LWH=args.cube_size), 
                                              transform=train_transform, split='train')
         
-        val_data = frameDataset(MultiviewC(root=args.root, ann_root=args.ann, calib_root=args.calib, 
+        val_data = frameDataset(MultiviewC(root=args.root, heatmap_type=args.heatmap, 
+                                           ann_root=args.ann, calib_root=args.calib, 
                                            world_size=args.world_size, cube_LWH=args.cube_size),
-                                           split='val')
+                                           transform=val_transform, split='val')
     elif opts.name == 'MultiviewX':
         train_data = frameDataset(MultiviewX(root=args.root, world_size=args.world_size, cube_LWH=args.cube_size), 
                                              transform=train_transform, split='train')
         
         val_data = frameDataset(MultiviewX(root=args.root, world_size=args.world_size, cube_LWH=args.cube_size),
-                                           split='val')
+                                           transform=val_transform, split='val')
+    
+    elif opts.name == 'Wildtrack':
+        train_data = frameDataset(Wildtrack(root=args.root, world_size=args.world_size, cube_LWH=args.cube_size), 
+                                             transform=train_transform, split='train')
+        
+        val_data = frameDataset(Wildtrack(root=args.root, world_size=args.world_size, cube_LWH=args.cube_size),
+                                           transform=val_transform, split='val')
 
     # Create dataloader
     train_loader = DataLoader(train_data, batch_size=args.batch_size, shuffle=True, num_workers=0, collate_fn=collate)
@@ -225,9 +245,8 @@ def train(opts):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Build model
-    if args.model_type == 'moftnet':
-        model = MOFTNet(grid_height=args.grid_h, cube_size=args.cube_size, angle_range=args.angle_range,
-                        grid_scale=args.grid_scale, mode=args.mode, pretrained=args.pretrained).to(device)
+    model = MOFTNet(args=args, grid_height=args.grid_h, cube_size=args.cube_size, angle_range=args.angle_range,
+                    mode=args.mode, pretrained=args.pretrained).to(device)
 
     # Create encoder
     encoder = ObjectEncoder(train_data, topk=args.topk)
@@ -267,12 +286,24 @@ def train(opts):
 
 
 if __name__ == '__main__':
+    """
+    Before run train.py, adjust the root of MultivewX.
+    # JinGuang Config:
+    cube_size: [4, 4, 64], [4, 4, 32] [4, 4, 16]
+    # Jiahao Config:
+    cube_size: [4, 4, 12.8] [4, 4, 8]
+    """
+    mx_opts.root = '~\Data\MultiviewX' # Adjust Me!
+    mx_opts.cube_size = to_numpy([4, 4, 64]) # Adjust ME! [4, 4, 64], [4, 4, 32] [4, 4, 16]
 
     # MultiviewC
     # train(mc_opts)
 
     # MultiviewX 
     train(mx_opts)
+
+    # Wildtrack
+    # train(wt_opts)
 
     # os.system('shutdown /s /t 10')
         

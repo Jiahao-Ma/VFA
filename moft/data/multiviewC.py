@@ -8,7 +8,7 @@ from torchvision import transforms
 from tqdm import tqdm
 sys.path.append(os.getcwd())
 
-from moft.data.GK import RotationGaussianKernel
+from moft.data.GK import GaussianKernel, RotationGaussianKernel
 from moft.data.ClsAvg import ClassAverage
 from moft.utils import Obj3D
 
@@ -21,6 +21,7 @@ MULTIVIEWC_BBOX_LABEL_NAMES = ['Cow']
 
 class MultiviewC(VisionDataset):
     def __init__(self, root, # PATH of MultiviewC dataset
+                       heatmap_type = 'RGK', # RGK: rotated gaussian kernel, GK: normal gaussian kernel
                        ann_root=r'annotations', 
                        img_root =r'images', 
                        calib_root=r'calibrations', 
@@ -55,6 +56,8 @@ class MultiviewC(VisionDataset):
                 NOTICE: we need to keep theta_c_global in range [-pi, pi]
         """
         self.__name__ = 'MultiviewC'
+        assert heatmap_type in ['RGK', 'GK'], 'heatmap_type error! Expect `GK` or `RGK`, got{}'.format(heatmap_type)
+        self.heatmap_type = heatmap_type
         self.root = root
         # MultiviewC's unit is constant: centimeter (cm)  for calibration, location and dimension
         self.img_shape, self.world_size = img_shape, world_size # H, W, N_row, N_col
@@ -69,6 +72,7 @@ class MultiviewC(VisionDataset):
             *[self.get_intrinsic_extrinsic_matrix(cam, root=self.calib_root) for cam in range(self.num_cam)])
 
         self.RGK = RotationGaussianKernel(save_dir=r'moft/data/mc_RGK.npy')
+        self.GK = GaussianKernel(save_dir=r'moft/data/mc_GK.npy')
         self.reload_RGK=reload_RGK
         self.classAverage = ClassAverage(classes=['Cow'])
         self.labels, self.heatmaps = self.download()
@@ -111,42 +115,50 @@ class MultiviewC(VisionDataset):
         # if cls avg not exist (true), calculate the property of dataset, including mean, number and sum of dimension
         BuildClsAvg = not os.path.exists(self.classAverage.save_path) 
         # if RGK not exist (true), build RGK; else, load RGK from file
-        BuildRGK = self.reload_RGK or not self.RGK.RGKExist() 
+        BuildRGK_GK = self.reload_RGK or not self.RGK.RGKExist() or not self.GK.GKExist()
         with tqdm(total=len(ann_paths), postfix=dict, mininterval=0.3) as pbar:
             for i, ann_path in enumerate(ann_paths):
                 with open(ann_path, 'r') as f:
                     annotations = json.load(f)
                 cow_infos = list()
-                heatmap = np.zeros(self.reduced_grid_size, dtype=np.float32)
+                rgk_heatmap = np.zeros(self.reduced_grid_size, dtype=np.float32)
+                gk_heatmap = np.zeros(self.reduced_grid_size, dtype=np.float32)
                 for cows in annotations['C1']:
                     location = cows['location']
                     dimension = cows['dimension']
                     rotation = np.deg2rad(cows['rotation']) # -180~180 => -pi~pi 
                     cow_infos.append(Obj3D(classname='Cow', dimension=dimension, 
                                         location=location, rotation=rotation, conf=None))
-                    if BuildRGK:
+                    if BuildRGK_GK:
                         x, y, _ = location
                         _, w, l = dimension
                         box_cx = x * self.reduced_grid_size[0] / self.world_size[0]
                         box_cy = y * self.reduced_grid_size[1] / self.world_size[1]
-                        heatmap = self.RGK.gaussian_kernel_heatmap(heatmap, box_cx, box_cy, l, w, cows['rotation'])
+                        rgk_heatmap = self.RGK.gaussian_kernel_heatmap(rgk_heatmap, box_cx, box_cy, l, w, cows['rotation'])
+                        gk_heatmap = self.GK.gaussian_kernel_heatmap(gk_heatmap, box_cx, box_cy)
                     if BuildClsAvg:
                         self.classAverage.add_item('Cow', dimension)
-                if BuildRGK:
-                    self.RGK.add_item(heatmap)
+                if BuildRGK_GK:
+                    self.RGK.add_item(rgk_heatmap)
+                    self.GK.add_item(gk_heatmap)
                 labels.append(cow_infos)
                 pbar.set_postfix(**{ 'Process' : ' {} / {}'.format(i, len(ann_paths)),
-                                    'Fname' : ' {}'.format(os.path.basename(ann_path)) })
+                                     'Fname' : ' {}'.format(os.path.basename(ann_path)) })
                 pbar.update(1)
 
         if BuildClsAvg:
             self.classAverage.dump_to_file()
         else:
             self.classAverage.load_from_file()
-        if BuildRGK:
+        if BuildRGK_GK:
             # dump RGK to file
-            heatmaps = self.RGK.dump_to_file()
+            rgk_heatmaps = self.RGK.dump_to_file()
+            gk_heatmaps = self.GK.dump_to_file()
         else:
-            heatmaps = self.RGK.load_from_file()
-
-        return labels, heatmaps
+            rgk_heatmaps = self.RGK.load_from_file()
+            gk_heatmaps = self.GK.load_from_file()
+            
+        if self.heatmap_type == 'RGK':
+            return labels, rgk_heatmaps
+        else:
+            return labels, gk_heatmaps

@@ -73,9 +73,9 @@ class MOFTNet(nn.Module):
             lat16 = F.relu(self.bn16(self.lat16(feat16)))
             lat32 = F.relu(self.bn32(self.lat32(feat32)))
 
-            ortho_feat8 = self.oft8(lat8, calib, grid, (-1, 0.95), visualize_ortho, cam=cam+1)
-            ortho_feat16 = self.oft16(lat16, calib, grid, (-1, 0.95),visualize_ortho, cam=cam+1)
-            ortho_feat32 = self.oft32(lat32, calib, grid, (-1, 0.95), visualize_ortho, cam=cam+1)
+            ortho_feat8 = self.oft8(lat8, calib, grid, (-1, 0.95), visualize_ortho)
+            ortho_feat16 = self.oft16(lat16, calib, grid, (-1, 0.95),visualize_ortho)
+            ortho_feat32 = self.oft32(lat32, calib, grid, (-1, 0.95), visualize_ortho)
             ortho_feats = ortho_feat8 + ortho_feat16 + ortho_feat32
         
             # Sum all ortho_feats up
@@ -164,14 +164,14 @@ if __name__ == '__main__':
                                           transforms.ToTensor()])
 
     # ck_p = r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\checkpoints\Epoch30_train_loss0.0362_val_loss0.4033.pth'
-    dataset = frameDataset(Wildtrack(root=r'F:\ANU\ENGN8602\Data\Wildtrack'), transform=train_transform)
+    dataset = frameDataset(MultiviewC(root=r'F:\ANU\ENGN8602\Data\MultiviewC_github\dataset'), transform=train_transform)
     encoder = ObjectEncoder(dataset)
     
     # state_dict = torch.load(ck_p)
     # [NOTICE] MultiviewX need to adjust the size of voxel of 3D grid we design 
     # The grid height is vitally important. If gird_height is too height, unvalid feature will be extracted such as the feature of sky.
-    model = MOFTNet(args=args, grid_height=64, cube_size=[4, 4, 8], mode='2D', pretrained=False) 
-    # model = MOFTNet(args=args, grid_height=160, cube_size=[25, 25, 32], mode='3D', pretrained=False) 
+    # model = MOFTNet(args=args, grid_height=64, cube_size=[4, 4, 8], mode='2D', pretrained=False) 
+    model = MOFTNet(args=args, grid_height=160, cube_size=[25, 25, 32], mode='3D', pretrained=False) 
     # model.load_state_dict(state_dict['model_state_dict'])
 
     dataloader = DataLoader(dataset, batch_size=1, num_workers=0, collate_fn=collate)

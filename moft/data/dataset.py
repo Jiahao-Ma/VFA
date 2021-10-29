@@ -71,9 +71,10 @@ if __name__ == '__main__':
     from moft.visualization.figure import _format_bboxes, _format_bottom
     from moft.visualization.bbox import project
     import matplotlib.pyplot as plt
-    from train import parse, mx_opts, wt_opts
-    wt_opts.cube_size=np.array((40, 40, 8))
+    from torchvision import transforms
+    from train import parse, mx_opts, mc_opts, wt_opts
     args = parse(wt_opts)
+
     # test MultiviewC and varify the visualization 
     # data = frameDataset(MultiviewC())
     # index, images, objects, heatmaps, calibs, grid = next(iter(data))
@@ -89,22 +90,24 @@ if __name__ == '__main__':
     #     plt.show()
 
     # test MultiviewX
+    transform = transforms.Compose([transforms.Resize(args.resize_size),
+                                          transforms.ToTensor()])
     r = 1
-    data = frameDataset(Wildtrack(root=args.root,
-                                  cube_LWH=args.cube_size))
+    data = frameDataset(Wildtrack(root=args.root, world_size=args.world_size, cube_LWH=args.cube_size),
+                                  transform=transform, split='val')
     index, images, objects, heatmaps, calibs, grid  = next(iter(data))
     colors = ['green', 'purple']
     heatmaps = (heatmaps.cpu().numpy()*255).clip(0, 255)
     for cam in range(0, data.num_cam):
         fig, axes = plt.subplots(1, 2)
-        axes[0] = _format_bottom(images[cam], calibs[cam], objects, args, ax=axes[0], height=16)
+        axes[0] = _format_bottom(images[cam], calibs[cam], objects, args, ax=axes[0], height=64)
         
         bottom = grid.cpu().numpy().reshape(-1, 3).transpose()
         bottom = Wildtrack.get_worldcoord_from_worldgrid(bottom).transpose() # N, 3
         bottom = np.concatenate([bottom, np.ones((bottom.shape[0], 1))], axis=1)
         imgcoord = project(bottom, calibs[cam])
         mask = (imgcoord[:, 0]>0) * (imgcoord[:, 0]<1920) * (imgcoord[:, 1]>0) * (imgcoord[:, 1]<1080)
-        axes[0].scatter(imgcoord[:, 0], imgcoord[:, 1], s=5, c='green')
+        # axes[0].scatter(imgcoord[:, 0], imgcoord[:, 1], s=5, c='green')
 
         vis_mask = grid.cpu().numpy().reshape(-1, 3)[mask]
         vis_mask = (vis_mask / np.array([4, 4, 1]))[:, :2].astype(np.int32)

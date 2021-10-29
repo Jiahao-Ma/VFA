@@ -57,7 +57,7 @@ class OFT(nn.Module):
         self.args = args
         self.collapse = nn.Linear(channel * num_grid_layer, channel)
 
-    def forward(self, feature, calib, grid, crange=(-1, 0.95), visualize=False, cam=None):
+    def forward(self, feature, calib, grid, crange=(-1, 0.95), visualize=False):
         # feature: (1, 512, 90, 160), calib: (3, 4), grid: (1, 156, 156, 3) z_corners: (8, 1, 1, 3)
         # corners: (1, 5, 156, 156, 3) = grid: (1, 1, 156, 156, 3) + z_corners: (5, 1, 1, 3)
         corners = grid.unsqueeze(0) + self.z_corners.view(-1, 1, 1, 3)
@@ -70,7 +70,8 @@ class OFT(nn.Module):
         img_corners3d = project(corners3d, calib) #(1, 5, 156, 156, 8, 2)
         
         feature_height, feature_width = feature.size()[2:]
-        img_size = corners.new([feature_width, feature_height]) / self.feat_scale
+        # img_size = corners.new([feature_width, feature_height]) / self.feat_scale
+        img_size = corners.new(self.args.image_size[::-1])
         norm_corners3d = (2 * img_corners3d / img_size - 1).clamp(crange[0], crange[1]) #(1, 5, 156, 156, 8, 2)
         # norm_corners3d = (2 * img_corners3d / img_size - 1).clamp(-1, 1) #(1, 5, 156, 156, 8, 2) # Adjust the influence of the image boundary
 
@@ -165,6 +166,8 @@ class OFT(nn.Module):
         plt.ylim(f_H, 0)
         plt.show()
         
+        
+
     def integral_image(self, features):
         return torch.cumsum(torch.cumsum(features, dim=-1), dim=-2)
 

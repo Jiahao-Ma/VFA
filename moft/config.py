@@ -7,7 +7,7 @@ class MultiviewC_Config(object):
 
     mode = '3D'
 
-    root = r'~\Data\MultiviewC' # the Path of MultiviewC dataset
+    root = r'F:\ANU\ENGN8602\Data\MultiviewC_github\dataset' # the Path of MultiviewC dataset
 
     world_size = (3900, 3900) # width and length of designed grid
 
@@ -34,19 +34,19 @@ class MultiviewX_Config(object):
 
     mode = '2D'
 
-    root = r'~\Data\MultiviewX' # the Path of MultiviewX dataset
+    root = r'F:\ANU\ENGN8602\Data\MultiviewX' # the Path of MultiviewX dataset
 
     world_size = (640, 1000) # width and length of designed grid
 
     image_size =  (1080, 1920) # (1080, 1920) -> (720, 1280) to reduce memory
 
-    resize_size = (1080, 1920)
+    resize_size = (720, 1280)
 
     ann = r'annotations_positions'
     
     calib = r'calibrations'
 
-    grid_h = 72 # the height of designed grid 
+    grid_h = 64 # the height of designed grid 
     # case1: 4; case2: 16; case3: 32; case4: 48; case5: 64; case6: 72; case7: 80
 
     cube_size = to_numpy((4, 4, 8))
@@ -62,22 +62,22 @@ class Wildtrack_Config(object):
 
     mode = '2D'
 
-    root = r'~\Data\Wildtrack' # the Path of MultiviewX dataset
+    root = r'F:\ANU\ENGN8602\Data\Wildtrack' # the Path of MultiviewX dataset
 
     world_size = (480, 1440) # width and length of designed grid
 
     image_size =  (1080, 1920) # (1080, 1920) -> (720, 1280) to reduce memory
 
-    resize_size = (1080, 1920)
+    resize_size = (720, 1280) # (1080, 1920) 
 
     ann = r'annotations_positions'
     
     calib = r'calibrations'
 
-    grid_h = 64 # the height of designed grid 
+    grid_h = 32 # the height of designed grid 
     
 
-    cube_size = to_numpy((4, 4, 8))
+    cube_size = to_numpy((4, 4, 4))
     
 
     loss_weight = [5., 1.]

@@ -162,7 +162,11 @@ class GaussianKernel(object):
         self.map_kernel = torch.zeros([1, 1, kernel_size, kernel_size], requires_grad=False)
         self.map_kernel[0, 0] = torch.from_numpy(map_kernel)
 
-    def gaussian_kernel_heatmap(self):
+    def gaussian_kernel_heatmap(self, heatmap, box_cx, box_cy):
+        heatmap[int(box_cy), int(box_cx)] = 1
+        return heatmap
+
+    def generate(self):
         # in order to boost the gaussian kernel heatmap generation,
         # send the tensor to default device: cuda:0
         device = torch.device('cpu')
@@ -171,7 +175,7 @@ class GaussianKernel(object):
             self.heatmaps = np.stack(self.heatmaps, axis=0)
         heatmaps = torch.Tensor(self.heatmaps)[:, None, :, :].to(device) # bs, 1, h, w
         mask = torch.where(heatmaps == 1.)
-        with torch.no_grad(): # BUG found here! after conv, gt lost!
+        with torch.no_grad(): 
             heatmaps = F.conv2d(heatmaps, self.map_kernel.float().to(device), \
                                 padding=int((self.map_kernel.shape[-1] - 1) / 2))
             heatmaps[mask] = 1.
@@ -190,7 +194,7 @@ class GaussianKernel(object):
             print('\033[31mRGK load error.\033[0m')
     
     def dump_to_file(self):
-        self.gaussian_kernel_heatmap()
+        self.generate()
         # self.viz_gk()
         try:
             np.save(self.save_dir, self.heatmaps)

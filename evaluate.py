@@ -11,16 +11,20 @@ from moft.data.encoder import ObjectEncoder
 from moft.data.dataset import frameDataset
 from moft.data.multiviewX import MultiviewX
 from moft.data.multiviewC import MultiviewC
+from moft.data.wildtrack import Wildtrack
 from moft.visualization.figure import visualize_bboxes
 from moft.evaluation.pyeval.CLEAR_MOD_HUN import CLEAR_MOD_HUN
 from moft.evaluation.evaluate import evaluate_rcll_prec_moda_modp, evaluate_ap_aos
-from moft.config import MultiviewX_Config, mx_opts
-def parse():
+from moft.config import MultiviewX_Config, Wildtrack_Config, mx_opts, wt_opts, mc_opts
+def parse(opts):
     parser = ArgumentParser()
 
     #Data options
-    parser.add_argument('--root', type=str, default=r'F:\ANU\ENGN8602\Data\MultiviewX',
-                        help='root directory of MultiviewC dataset')
+    parser.add_argument('--root', type=str, default=opts.root,
+                        help='root directory of dataset')
+
+    parser.add_argument('--data', type=str, default=opts.name,
+                        help='the name of dataset')                        
 
     parser.add_argument('-b', '--batch_size', type=int, default=1,
                         help='batch size for training. [NOTICE]: this repo only support \
@@ -30,38 +34,45 @@ def parse():
                         default='experiments')
     
     parser.add_argument('--resume', type=str,
-                        default='2021-10-22_15-06-31')
+                        default='2021-10-28_16-31-40_wt')
     
     parser.add_argument('--checkpoint', type=str,
-                        default='Epoch35_train_loss0.0172_val_loss0.5953.pth')
+                        default='Epoch30_train_loss0.0176_val_loss1.4921.pth')
     
     #Predict options
     parser.add_argument('--cls_thresh', type=float, default=0.8,
                         help='positive sample confidence threshold')  
 
     parser.add_argument('--pr_dir_pred', type=str, 
-                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\evaluation\pr_dir_pred.txt')
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-28_16-31-40_wt\evaluation\pr_dir_pred.txt')
     parser.add_argument('--pr_dir_gt', type=str, 
-                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\evaluation\pr_dir_gt.txt')
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-28_16-31-40_wt\evaluation\pr_dir_gt.txt')
 
     parser.add_argument('--ap_aos_dir_pred', type=str, 
-                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\evaluation\ap_aos_pred.txt')
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-28_16-31-40_wt\evaluation\ap_aos_pred.txt')
     parser.add_argument('--ap_aos_dir_gt', type=str, 
-                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-22_15-06-31\evaluation\ap_aos_gt.txt')
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-28_16-31-40_wt\evaluation\ap_aos_gt.txt')
 
     parser.add_argument('--eval_mode', type=str, default='2D')
 
     parser.add_argument('--eval_tool', type=str, default='matlab')                        
 
-    parser.add_argument('--config', type=MultiviewX_Config, default=mx_opts)
+    parser.add_argument('--config', type=Wildtrack_Config, default=opts)
 
     args = parser.parse_args()
     print('Settings:')
     print(vars(args))
     return args
 
-def resume(resume_dir, model):
+def resume(resume_dir, device):
+
     checkpoints = torch.load(resume_dir)
+    ck_args = checkpoints['args']
+    # Build model
+    model = MOFTNet(args=ck_args,
+                    grid_height=ck_args.grid_h, 
+                    cube_size=ck_args.cube_size,
+                    mode=ck_args.mode).to(device)
 
     model.load_state_dict(checkpoints['model_state_dict'])
 
@@ -108,6 +119,8 @@ class FormatAPAOSData():
                     tmp = np.concatenate([id, location, dimension, rotation], axis=0).reshape(1, -1)
                     self.data = np.vstack([self.data, tmp])
     def save(self):
+        if not os.path.exists(os.path.dirname(self.save_dir)):
+            os.mkdir(os.path.dirname(self.save_dir))
         np.savetxt(self.save_dir, self.data)
     
     def exist(self):
@@ -126,18 +139,20 @@ class FormatPRData():
             tmp = np.concatenate([ np.ones((location.shape[0], 1))*id,  location], axis=1)
             self.data = np.concatenate([self.data, tmp], axis=0)
     def save(self):
+        if not os.path.exists(os.path.dirname(self.save_dir)):
+            os.mkdir(os.path.dirname(self.save_dir))
         np.savetxt(self.save_dir, self.data)
     
     def exist(self):
         return os.path.exists(self.save_dir)
 
 
-def main():
+def main(opts):
     # Parse argument
-    args = parse()
+    args = parse(opts)
 
     # Data
-    dataset = frameDataset(MultiviewX(root=args.root), split='val')
+    dataset = frameDataset(Wildtrack(root=args.root), split='val')
 
     # Create dataloader
     dataloader = DataLoader(dataset, batch_size=args.batch_size, shuffle=False, num_workers=0, collate_fn=collate)  
@@ -145,18 +160,12 @@ def main():
     # Device: default 1 GPU
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
 
-    # Build model
-    model = MOFTNet(grid_height=args.config.grid_h, 
-                       cube_size=args.config.cube_size,
-                       grid_scale=args.config.grid_scale,
-                       mode=args.config.mode).to(device)
-
     # Create encoder
     encoder = ObjectEncoder(dataset)   
 
     # Resume
     resume_dir = os.path.join(args.savedir, args.resume, 'checkpoints', args.checkpoint)      
-    model = resume(resume_dir, model)
+    model = resume(resume_dir, device)
 
    
     APAOS_pred = FormatAPAOSData(args.ap_aos_dir_pred, 'pred')
@@ -188,8 +197,8 @@ def main():
         PR_pred.save()
         PR_gt.save()
 
-    recall, precision, moda, modp = evaluate_rcll_prec_moda_modp(args.pr_dir_pred, args.pr_dir_gt, dataset='MultiviewX', eval=args.eval_tool)
-    print(f'{args.eval_tool} eval: MODA {moda:.1f}, MODP {modp:.1f}, prec {precision:.1f}, rcll {recall:.1f}')
+    recall, precision, moda, modp = evaluate_rcll_prec_moda_modp(args.pr_dir_pred, args.pr_dir_gt, dataset=args.data, eval=args.eval_tool)
+    print(f'\n{args.eval_tool} eval: MODA {moda:.1f}, MODP {modp:.1f}, prec {precision:.1f}, rcll {recall:.1f}')
     if args.eval_mode == '3D':
         AP_75, AOS_75, OS_75, AP_50, AOS_50, OS_50, AP_25, AOS_25, OS_25 = evaluate_ap_aos(args.ap_aos_dir_pred, args.ap_aos_dir_gt)
         print("AP_75: %.2f" % AP_75, " ,AOS_75: %.2f" % AOS_75, ", OS_75: %.2f" % OS_75)
@@ -197,4 +206,11 @@ def main():
         print("AP_25: %.2f" % AP_25, " ,AOS_25: %.2f" % AOS_25, ", OS_25: %.2f" % OS_25)
 
 if __name__ == '__main__':
-    main()
+    # Wildtrack
+    # main(wt_opts)
+
+    # MultiviewX
+    # main(mx_opts)
+    
+    # MultiviewC
+    main(mc_opts)

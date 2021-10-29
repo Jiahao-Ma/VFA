@@ -144,7 +144,6 @@ def _format_bottom(image, calib, objects, args, ax=None, height=None):
         head = np.array(head).reshape(-1, 3)
         head3d = np.concatenate([head, np.ones((head.shape[0], 1))], axis=1)
         head2d = project(head3d, to_numpy(calib))
-
         # Visualize bottom center 
         ax.scatter(head2d[:, 0], head2d[:, 1], s=5, c='yellow')
     return ax
