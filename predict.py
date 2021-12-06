@@ -4,11 +4,11 @@ from argparse import ArgumentParser
 import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader 
 
-from moft.utils import collate, grid_rot180
-from moft.model.oftnet import MOFTNet
-from moft.data.encoder import ObjectEncoder
-from moft.data.dataset import MultiviewC, frameDataset
-from moft.visualization.figure import visualize_bboxes
+from vfa.utils import collate, grid_rot180
+from vfa.model.vfanet import VFANet
+from vfa.data.encoder import ObjectEncoder
+from vfa.data.dataset import MultiviewC, frameDataset
+from vfa.visualization.figure import visualize_bboxes
 
 def parse():
     parser = ArgumentParser()
@@ -29,6 +29,9 @@ def parse():
     
     parser.add_argument('--checkpoint', type=str,
                         default='Epoch39_train_loss0.0267_val_loss1.0070.pth')
+
+    parser.add_argument('--resume_dir', type=str,
+                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-12_09-50-09\checkpoints\Epoch39_train_loss0.0267_val_loss1.0070.pth')
     
     #Predict options
     parser.add_argument('--cls_thresh', type=float, default=0.9,
@@ -64,14 +67,14 @@ def main():
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')    
 
     # Build model
-    model = MOFTNet().to(device)             
+    model = VFANet().to(device)             
 
     # Create encoder
     encoder = ObjectEncoder(dataset)   
 
     # Resume
-    resume_dir = os.path.join(args.savedir, args.resume, 'checkpoints', args.checkpoint)      
-    model = resume(resume_dir, model)
+    
+    model = resume(args.resume_dir, model)
 
     # Predict
     _, images, objects, calibs, grid = next(iter(dataloader))

@@ -1,0 +1,1 @@
+Epoch:1, Steps:0, loss:1.25671, loss_heatmap:0.39463

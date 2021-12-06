@@ -5,17 +5,17 @@ import matplotlib.pyplot as plt
 from torch.utils.data import DataLoader 
 from tqdm import tqdm
 
-from moft.utils import collate, to_numpy
-from moft.model.oftnet import MOFTNet
-from moft.data.encoder import ObjectEncoder
-from moft.data.dataset import frameDataset
-from moft.data.multiviewX import MultiviewX
-from moft.data.multiviewC import MultiviewC
-from moft.data.wildtrack import Wildtrack
-from moft.visualization.figure import visualize_bboxes
-from moft.evaluation.pyeval.CLEAR_MOD_HUN import CLEAR_MOD_HUN
-from moft.evaluation.evaluate import evaluate_rcll_prec_moda_modp, evaluate_ap_aos
-from moft.config import MultiviewX_Config, Wildtrack_Config, mx_opts, wt_opts, mc_opts
+from vfa.utils import collate, to_numpy
+from vfa.model.vfanet import VFANet
+from vfa.data.encoder import ObjectEncoder
+from vfa.data.dataset import frameDataset
+from vfa.data.multiviewX import MultiviewX
+from vfa.data.multiviewC import MultiviewC
+from vfa.data.wildtrack import Wildtrack
+from vfa.visualization.figure import visualize_bboxes
+from vfa.evaluation.pyeval.CLEAR_MOD_HUN import CLEAR_MOD_HUN
+from vfa.evaluation.evaluate import evaluate_rcll_prec_moda_modp, evaluate_ap_aos
+from vfa.config import MultiviewX_Config, Wildtrack_Config, mx_opts, wt_opts, mc_opts
 def parse(opts):
     parser = ArgumentParser()
 
@@ -34,30 +34,30 @@ def parse(opts):
                         default='experiments')
     
     parser.add_argument('--resume', type=str,
-                        default='2021-10-28_16-31-40_wt')
+                        default=None) # eg: '2021-10-28_16-31-40_wt'
     
     parser.add_argument('--checkpoint', type=str,
-                        default='Epoch30_train_loss0.0176_val_loss1.4921.pth')
+                        default=None) # eg: 'Epoch30_train_loss0.0176_val_loss1.4921.pth'
     
     #Predict options
     parser.add_argument('--cls_thresh', type=float, default=0.8,
                         help='positive sample confidence threshold')  
 
     parser.add_argument('--pr_dir_pred', type=str, 
-                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-28_16-31-40_wt\evaluation\pr_dir_pred.txt')
+                        default=None) # r'vfa\experiments\2021-10-28_16-31-40_wt\evaluation\pr_dir_pred.txt'
     parser.add_argument('--pr_dir_gt', type=str, 
-                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-28_16-31-40_wt\evaluation\pr_dir_gt.txt')
+                        default=None) # r'vfa\experiments\2021-10-28_16-31-40_wt\evaluation\pr_dir_gt.txt'
 
     parser.add_argument('--ap_aos_dir_pred', type=str, 
-                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-28_16-31-40_wt\evaluation\ap_aos_pred.txt')
+                        default=None) # r'vfa\experiments\2021-10-28_16-31-40_wt\evaluation\ap_aos_pred.txt'
     parser.add_argument('--ap_aos_dir_gt', type=str, 
-                        default=r'F:\ANU\ENGN8602\Code\moft3d\experiments\2021-10-28_16-31-40_wt\evaluation\ap_aos_gt.txt')
+                        default=None) # r'vfa\experiments\2021-10-28_16-31-40_wt\evaluation\ap_aos_gt.txt'
 
-    parser.add_argument('--eval_mode', type=str, default='2D')
+    parser.add_argument('--eval_mode', type=str, default='2D') # wiltrack, multiviewX: 2D, multiviewC: 3D
 
-    parser.add_argument('--eval_tool', type=str, default='matlab')                        
+    parser.add_argument('--eval_tool', type=str, default='matlab') # matlab is more precise than `python` mode                   
 
-    parser.add_argument('--config', type=Wildtrack_Config, default=opts)
+    parser.add_argument('--config', type=Wildtrack_Config, default=opts) # MultiviewC_Config, MultiviewX_Config, Wildtrack_Config
 
     args = parser.parse_args()
     print('Settings:')
@@ -69,7 +69,7 @@ def resume(resume_dir, device):
     checkpoints = torch.load(resume_dir)
     ck_args = checkpoints['args']
     # Build model
-    model = MOFTNet(args=ck_args,
+    model = VFANet(args=ck_args,
                     grid_height=ck_args.grid_h, 
                     cube_size=ck_args.cube_size,
                     mode=ck_args.mode).to(device)
@@ -207,10 +207,10 @@ def main(opts):
 
 if __name__ == '__main__':
     # Wildtrack
-    # main(wt_opts)
+    main(wt_opts)
 
     # MultiviewX
     # main(mx_opts)
     
     # MultiviewC
-    main(mc_opts)
+    # main(mc_opts)

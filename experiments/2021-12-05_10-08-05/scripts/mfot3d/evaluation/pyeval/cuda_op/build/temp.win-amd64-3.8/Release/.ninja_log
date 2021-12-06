@@ -1,0 +1,5 @@
+# ninja log v5
+3	6875	6526004965522048	F:/ObjectDetection/RotationObjectDetection/codes/Rotated_IoU/cuda_op/build/temp.win-amd64-3.8/Release/sort_vert.obj	d521e4275fc98a3
+0	8219	6526004978938932	F:/ObjectDetection/RotationObjectDetection/codes/Rotated_IoU/cuda_op/build/temp.win-amd64-3.8/Release/sort_vert_kernel.obj	35c42bf2924b51c9
+9	6790	6526009877133659	F:/ObjectDetection/RotationObjectDetection/codes/Rotated_IoU/cuda_op/build/temp.win-amd64-3.8/Release/sort_vert.obj	1413c613909d060b
+6	7982	6526009889066345	F:/ObjectDetection/RotationObjectDetection/codes/Rotated_IoU/cuda_op/build/temp.win-amd64-3.8/Release/sort_vert_kernel.obj	9d400d552d9623fc

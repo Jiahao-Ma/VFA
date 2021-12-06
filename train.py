@@ -9,13 +9,13 @@ from tensorboardX import SummaryWriter
 from torchvision import transforms
 from distutils.dir_util import copy_tree
 
-from moft.model.oftnet import MOFTNet
-from moft.trainer import Trainer
+from vfa.model.vfanet import VFANet
+from vfa.trainer import Trainer
 from torch.utils.data import DataLoader
-from moft.utils import collate
-from moft.data.dataset import frameDataset, MultiviewC, MultiviewX
-from moft.data.encoder import ObjectEncoder
-from moft.config import *
+from vfa.utils import collate
+from vfa.data.dataset import frameDataset, MultiviewC, MultiviewX
+from vfa.data.encoder import ObjectEncoder
+from vfa.config import *
 
 def parse(opts):
 
@@ -155,7 +155,7 @@ def make_experiment(args, copy_repo=False):
     summary.file_writer.flush()
     if copy_repo:
         os.makedirs(args.savedir, exist_ok=True)
-        copy_tree('./moft', args.savedir + '/scripts/mfot3d')
+        copy_tree('./vfa', args.savedir + '/scripts/mfot3d')
     return summary, args
 
 def resume_experiment(args):
@@ -245,7 +245,7 @@ def train(opts):
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     
     # Build model
-    model = MOFTNet(args=args, grid_height=args.grid_h, cube_size=args.cube_size, angle_range=args.angle_range,
+    model = VFANet(args=args, grid_height=args.grid_h, cube_size=args.cube_size, angle_range=args.angle_range,
                     mode=args.mode, pretrained=args.pretrained).to(device)
 
     # Create encoder
@@ -286,21 +286,11 @@ def train(opts):
 
 
 if __name__ == '__main__':
-    """
-    Before run train.py, adjust the root of MultivewX.
-    # JinGuang Config:
-    cube_size: [4, 4, 64], [4, 4, 32] [4, 4, 16]
-    # Jiahao Config:
-    cube_size: [4, 4, 12.8] [4, 4, 8]
-    """
-    mx_opts.root = '~\Data\MultiviewX' # Adjust Me!
-    mx_opts.cube_size = to_numpy([4, 4, 64]) # Adjust ME! [4, 4, 64], [4, 4, 32] [4, 4, 16]
-
     # MultiviewC
-    # train(mc_opts)
+    train(mc_opts)
 
     # MultiviewX 
-    train(mx_opts)
+    # train(mx_opts)
 
     # Wildtrack
     # train(wt_opts)
