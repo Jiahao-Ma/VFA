@@ -25,6 +25,7 @@ The MultiviewC dataset is generated on a 37.5 meter by 37.5 meter square field. 
 Please refer to this [repo](https://github.com/Robert-Mar/MultiviewC) for MultiviewC dataset toolkits.
 
 ## VFA
+![alt text](https://github.com/Robert-Mar/VFA/blob/main/.github/vfa_v2.png "Visualization of VFA architecture")
 This repo is contributed to the code for VFA.
 
 ### Data Preparation
