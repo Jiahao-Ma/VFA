@@ -46,8 +46,10 @@ Training from scratch.
 ```
 # For MultiviewC
 python .\train.py --data MultiviewC
+
 # For MultiviewX
 python .\train.py --data MultiviewX
+
 # For Wildtrack
 python .\train.py --data Wildtrack
 ```
