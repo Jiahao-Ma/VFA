@@ -1,10 +1,11 @@
-from genericpath import exists
 import os, random
 import torch
 import torch.optim as optim
 import numpy as np
 from datetime import datetime
 from argparse import ArgumentParser
+import matplotlib
+matplotlib.use('agg')
 from tensorboardX import SummaryWriter
 from torchvision import transforms
 from distutils.dir_util import copy_tree
@@ -50,7 +51,7 @@ def parse(opts):
                         help='calibrations of MultiviewC dataset')
 
     # Training options
-    parser.add_argument('-e', '--epochs', type=int, default=30,
+    parser.add_argument('-e', '--epochs', type=int, default=40,
                         help='the number of epochs for training')
     
     parser.add_argument('-b', '--batch_size', type=int, default=1,
@@ -286,14 +287,22 @@ def train(opts):
 
 
 if __name__ == '__main__':
-    # MultiviewC
-    train(mc_opts)
+    mode_parser = ArgumentParser()
+    mode_parser.add_argument('--data', type=str, required=True, 
+                        help='dataset: MultiviewC, MultiviewX, Wildtrack')
+    mode = mode_parser.parse_args()
+    if mode.data == mc_opts.name:
+        # MultiviewC
+        train(mc_opts)
+    elif mode.data == mx_opts.name:
+        # MultiviewX 
+        train(mx_opts)
+    elif mode.data == wt_opts.name:
+        # Wildtrack
+        train(wt_opts)
+    else:
+        raise ValueError('Dataset error, expect `MultiviewC`, `MultiviewX`, `Wildtrack`, got {}.'.format(mode.dataset))
+    
 
-    # MultiviewX 
-    # train(mx_opts)
-
-    # Wildtrack
-    # train(wt_opts)
-
-    # os.system('shutdown /s /t 10')
+   
         
