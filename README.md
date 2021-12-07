@@ -35,8 +35,10 @@ Your `~/Data/` folder should look like this
 Data
 ├── MultiviewC/
 │   └── ...
+|
 ├── MultiviewX/
 │   └── ...
+|
 └── Wildtrack/ 
     └── ...
 ```
