@@ -1,17 +1,21 @@
 import numpy as np
 import sys, os
 from .pyeval.evaluateAPAOS import evaluateDetectionAPAOS
-sys.path.append(os.getcwd())
+proj_path = os.getcwd()
+sys.path.append(proj_path)
 
 def evaluate_rcll_prec_moda_modp(res_fpath, gt_fpath, dataset='wildtrack', eval='matlab'):
     if eval == 'matlab':
         import matlab.engine
         eng = matlab.engine.start_matlab()
-        eng.cd(r'F:\ANU\ENGN8602\Code\moft3d\moft\evaluation\motchallenge-devkit')       
-        res = eng.evaluateDetection(res_fpath, gt_fpath, dataset)
+        eng.cd(r'vfa\evaluation\motchallenge-devkit')    
+        # relative path -> absolute path 
+        res_fpath = proj_path + '\\' + res_fpath.split('\\', 1)[1] 
+        gt_fpath = proj_path + '\\' + gt_fpath.split('\\', 1)[1] 
+        res = eng.evaluateDetection(res_fpath, gt_fpath, dataset) #experiments\Wildtrack\evaluation\pr_dir_gt.txt
         recall, precision, moda, modp = np.array(res['detMets']).squeeze()[[0, 1, -2, -1]]
     elif eval == 'python':
-        from moft.evaluation.pyeval.evaluateDetection import evaluateDetection_py
+        from vfa.evaluation.pyeval.evaluateDetection import evaluateDetection_py
 
         recall, precision, moda, modp = evaluateDetection_py(res_fpath, gt_fpath, dataset)
     else:
@@ -25,8 +29,8 @@ def evaluate_ap_aos(res_fpath, gt_fpath):
 if __name__ == "__main__":
 
 
-    res_fpath = os.path.abspath('moft\\evaluation\\test-demo.txt')
-    gt_fpath = os.path.abspath('moft\\evaluation\\gt-demo.txt')
+    res_fpath = os.path.abspath('.\\evaluation\\test-demo.txt')
+    gt_fpath = os.path.abspath('.\\evaluation\\gt-demo.txt')
     os.chdir('../..')
     print(os.path.abspath('.')) 
 

@@ -1,6 +1,6 @@
 ### python version of matlab evaluation toolkit
 import numpy as np
-from moft.evaluation.pyeval.CLEAR_MOD_HUN import CLEAR_MOD_HUN
+from vfa.evaluation.pyeval.CLEAR_MOD_HUN import CLEAR_MOD_HUN
 
 
 def evaluateDetection_py(res_fpath, gt_fpath, dataset_name):
