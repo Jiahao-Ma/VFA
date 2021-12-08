@@ -1,4 +1,4 @@
-# Voxelized 3D Feature Aggregation for Multiview Detection[arXiv](https://arxiv.org/abs/2112.03471)
+# Voxelized 3D Feature Aggregation for Multiview Detection [[arXiv](https://arxiv.org/abs/2112.03471)]21
  Multiview 3D object detection on MultiviewC dataset through VFA.
 
 ## Introduction
