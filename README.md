@@ -59,7 +59,7 @@ python .\train.py --data Wildtrack
 We provide the training documents contains the checkpoints of model, optimizer and scheduler and tensorboard containing the training details. Download the latest training documents to `~/experiments` folder from [BaiduDrive](https://pan.baidu.com/s/1KtOBXuxPdnTnKwvyAkZLug)`pwd:6666` or [GoogleDrive](https://drive.google.com/file/d/1SaseZUtc7cb-CX7WoiAQeWe_peqT3yd_/view?usp=sharing) and unzip them. Your `~/experiments/` folder should look like this
 ```
 experiments
-├── MultiviewC/
+└── MultiviewC/
     ├── checkpoints
     |   └── ...
     └── evaluation
