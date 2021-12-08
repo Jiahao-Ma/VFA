@@ -56,7 +56,17 @@ python .\train.py --data MultiviewX
 python .\train.py --data Wildtrack
 ```
 
-Download the latest training documents to `~/experiments` folder from [BaiduDrive](https://pan.baidu.com/s/1OJTZHaDnLh5PJnV7ZqqWmA)`pwd:6666` or [GoogleDrive](https://drive.google.com/file/d/1itqfAaO8RGag05W-4bGM9-2HTsQ7Czct/view?usp=sharing) and unzip them. This training documents contains the checkpoints of model, optimizer and scheduler and tensorboard containing the training details.
+We provide the training documents contains the checkpoints of model, optimizer and scheduler and tensorboard containing the training details. Download the latest training documents to `~/experiments` folder from [BaiduDrive](https://pan.baidu.com/s/1KtOBXuxPdnTnKwvyAkZLug)`pwd:6666` or [GoogleDrive](https://drive.google.com/file/d/1SaseZUtc7cb-CX7WoiAQeWe_peqT3yd_/view?usp=sharing) and unzip them.
+```
+experiments
+├── MultiviewC/
+    ├── checkpoints
+    |   └── ...
+    └── evaluation
+    |   └── ...
+    └── tensorboard
+        └── ...
+```
 
 ### Evaluation
 There are two metrics to evaluate the performance of model. MODA, MODP, Precission and Recall are used to evaluate detection performance such as the detection in occlusion scenes. These metrics need to successfully run in matlab environment. Please refer to [here](https://github.com/Robert-Mar/VFA/tree/main/moft/evaluation) for more details.
